@@ -11,7 +11,7 @@ import { Button } from "../element/button";
 export function TorrentPage() {
   const location = useLocation();
   const { id } = useParams();
-  const evState = "kind" in location.state ? (location.state as TaggedNostrEvent) : undefined;
+  const evState = location.state && "kind" in location.state ? (location.state as TaggedNostrEvent) : undefined;
 
   const rb = new RequestBuilder("torrent:event");
   rb.withFilter()
