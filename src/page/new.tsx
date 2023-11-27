@@ -168,7 +168,7 @@ export function NewPage() {
           <div className="flex-1 flex flex-col gap-1">
             <label>Description</label>
             <textarea
-              rows={20}
+              rows={30}
               className="font-mono text-xs"
               value={obj.desc}
               onChange={(e) => setObj((o) => ({ ...o, desc: e.target.value }))}
