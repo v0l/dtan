@@ -90,7 +90,6 @@ export function NewPage() {
         .kind(TorrentKind)
         .content(obj.desc)
         .tag(["title", obj.name])
-        .tag(["size", String(obj.files.reduce((acc, v) => (acc += v.size), 0))])
         .tag(["btih", obj.btih]);
 
       obj.tags.forEach((t) => v.tag(["t", t]));

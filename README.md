@@ -4,7 +4,6 @@
     "content": "<long-description-pre-formatted>",
     "tags": [
       ["title", "<torrent-title>"],
-      ["size", "<size-in-bytes>"],
       ["btih", "<bittorrent-info-hash>"],
       ["t", "<top-level-tag>"],
       ["t", "(optional)<second-level-tag>"],

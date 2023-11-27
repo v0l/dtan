@@ -31,7 +31,7 @@ export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
 function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
   const profile = useUserProfile(item.pubkey);
   const name = item.tags.find((a) => a[0] === "title")?.at(1);
-  const size = Number(item.tags.find((a) => a[0] === "size")?.at(1));
+  const size = item.tags.filter(a => a[0] === "file").map(a => Number(a[2])).reduce((acc, v) => acc += v, 0);
   const npub = hexToBech32("npub", item.pubkey);
   return (
     <tr>

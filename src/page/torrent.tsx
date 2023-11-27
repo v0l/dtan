@@ -29,7 +29,7 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   const login = useLogin();
   const navigate = useNavigate();
   const name = item.tags.find((a) => a[0] === "title")?.at(1);
-  const size = Number(item.tags.find((a) => a[0] === "size")?.at(1));
+  const size = item.tags.filter(a => a[0] === "file").map(a => Number(a[2])).reduce((acc, v) => acc += v, 0);
   const files = item.tags.filter((a) => a[0] === "file");
   const tags = item.tags.filter((a) => a[0] === "t").map((a) => a[1]);
 
