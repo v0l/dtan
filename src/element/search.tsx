@@ -1,35 +1,27 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { Categories } from "../const";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-export function Search() {
-  const params = useParams();
+export function Search(params: { term?: string; tags?: Array<string> }) {
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
+  const [tags, setTags] = useState<Array<string>>([]);
 
   useEffect(() => {
     setTerm(params.term ?? "");
-  }, [params.term]);
+    setTags(params.tags ?? []);
+  }, [params]);
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex gap-3 flex-wrap">
-        {Categories.map((a) => (
-          <div className="flex gap-1" key={a.tag}>
-            <input type="checkbox" />
-            <label>{a.name}</label>
-          </div>
-        ))}
-      </div>
+    <div>
       <input
         type="text"
         placeholder="Search.."
-        className="p-3 rounded grow"
+        className="p-3 rounded w-full"
         value={term}
         onChange={(e) => setTerm(e.target.value)}
         onKeyDown={(e) => {
           if (e.key == "Enter") {
-            navigate(`/search/${encodeURIComponent(term)}`);
+            navigate(`/search/${encodeURIComponent(term)}${tags.length > 0 ? `?tags=${tags.join(",")}` : ""}`);
           }
         }}
       />

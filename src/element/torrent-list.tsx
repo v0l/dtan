@@ -10,7 +10,7 @@ export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
   return (
     <table className="torrent-list">
       <thead>
-        <tr>
+        <tr className="bg-slate-600">
           <th>Category</th>
           <th>Name</th>
           <th>Uploaded</th>
@@ -37,12 +37,26 @@ function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
     .reduce((acc, v) => (acc += v), 0);
   const npub = hexToBech32("npub", item.pubkey);
   return (
-    <tr>
+    <tr className="hover:bg-slate-800">
       <td>
         {item.tags
           .filter((a) => a[0] === "t")
-          .map((a) => a[1])
-          .join(" > ")}
+          .slice(0, 3)
+          .map((a, i, arr) => (
+            <>
+              <Link
+                to={`/search/?tags=${encodeURIComponent(
+                  arr
+                    .slice(0, i + 1)
+                    .map((b) => b[1])
+                    .join(","),
+                )}`}
+              >
+                {a[1]}
+              </Link>
+              {arr.length !== i + 1 && " > "}
+            </>
+          ))}
       </td>
       <td>
         <Link to={`/e/${NostrLink.fromEvent(item).encode()}`} state={item}>

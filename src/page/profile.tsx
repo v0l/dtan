@@ -11,10 +11,10 @@ export function ProfilePage() {
 
   if (!link) return;
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <ProfileSection pubkey={link.id} />
       <LatestTorrents author={link.id} />
-    </>
+    </div>
   );
 }
 
