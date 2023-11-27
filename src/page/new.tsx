@@ -1,13 +1,11 @@
-import { ReactNode, useContext, useState } from "react";
+import { ReactNode, useState } from "react";
 import { Categories, Category, TorrentKind } from "../const";
 import { Button } from "../element/button";
-import { EventPublisher, Nip7Signer } from "@snort/system";
 import { useLogin } from "../login";
 import { dedupe } from "@snort/shared";
 import * as bencode from "../bencode";
 import { sha1 } from "@noble/hashes/sha1";
 import { bytesToHex } from "@noble/hashes/utils";
-import { SnortContext } from "@snort/system-react";
 import { useNavigate } from "react-router-dom";
 
 async function openFile(): Promise<File | undefined> {
@@ -45,7 +43,6 @@ async function openFile(): Promise<File | undefined> {
 
 export function NewPage() {
     const login = useLogin();
-    const system = useContext(SnortContext);
     const navigate = useNavigate();
 
     const [obj, setObj] = useState({
@@ -88,10 +85,7 @@ export function NewPage() {
 
     async function publish() {
         if (!login) return;
-        const signer = new Nip7Signer();
-        const builder = new EventPublisher(signer, login.publicKey);
-
-        const ev = await builder.generic((eb) => {
+        const ev = await login.builder.generic((eb) => {
             const v = eb
                 .kind(TorrentKind)
                 .content(obj.desc)
@@ -107,7 +101,7 @@ export function NewPage() {
         console.debug(ev);
 
         if (ev) {
-            await system.BroadcastEvent(ev);
+            await login.system.BroadcastEvent(ev);
         }
         navigate("/")
     }

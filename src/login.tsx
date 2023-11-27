@@ -1,5 +1,7 @@
 import { ExternalStore } from "@snort/shared";
-import { useSyncExternalStore } from "react";
+import { EventPublisher, Nip7Signer } from "@snort/system";
+import { SnortContext } from "@snort/system-react";
+import { useContext, useSyncExternalStore } from "react";
 
 export interface LoginSession {
   publicKey: string;
@@ -35,8 +37,14 @@ class LoginStore extends ExternalStore<LoginSession | undefined> {
 export const LoginState = new LoginStore();
 
 export function useLogin() {
-  return useSyncExternalStore(
+  const session = useSyncExternalStore(
     (c) => LoginState.hook(c),
     () => LoginState.snapshot(),
   );
+  const system = useContext(SnortContext);
+  return session ? {
+    ...session,
+    builder: new EventPublisher(new Nip7Signer(), session.publicKey),
+    system
+  } : undefined;
 }

@@ -1,10 +1,12 @@
 import { unwrap } from "@snort/shared";
 import { NoteCollection, RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
 import { useRequestBuilder } from "@snort/system-react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FormatBytes, TorrentKind } from "../const";
 import { ProfileImage } from "../element/profile-image";
 import { MagnetLink } from "../element/magnet";
+import { useLogin } from "../login";
+import { Button } from "../element/button";
 
 export function TorrentPage() {
   const location = useLocation();
@@ -24,10 +26,20 @@ export function TorrentPage() {
 }
 
 export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
+  const login = useLogin();
+  const navigate = useNavigate();
   const name = item.tags.find((a) => a[0] === "title")?.at(1);
   const size = Number(item.tags.find((a) => a[0] === "size")?.at(1));
   const files = item.tags.filter(a => a[0] === "file");
   const tags = item.tags.filter(a => a[0] === "t").map(a => a[1]);
+
+  async function deleteTorrent() {
+    const ev = await login?.builder?.delete(item.id);
+    if (ev) {
+      await login?.system.BroadcastEvent(ev);
+      navigate(-1);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -57,6 +69,9 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
           <small className="text-slate-500 font-semibold">{FormatBytes(Number(a[2]))}</small>
         </div>)}
       </div>
+      {item.pubkey == login?.publicKey && <Button className="bg-red-600 hover:bg-red-800" onClick={deleteTorrent}>
+        Delete
+      </Button>}
     </div>
   );
 }
