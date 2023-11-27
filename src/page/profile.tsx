@@ -13,7 +13,7 @@ export function ProfilePage() {
   return (
     <>
       <ProfileSection pubkey={link.id} />
-      <LatestTorrents />
+      <LatestTorrents author={link.id} />
     </>
   );
 }

@@ -3,9 +3,9 @@ import { TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "./torrent-list";
 
-export function LatestTorrents() {
+export function LatestTorrents({ author }: { author?: string }) {
   const sub = new RequestBuilder("torrents:latest");
-  sub.withFilter().kinds([TorrentKind]).limit(100);
+  sub.withFilter().kinds([TorrentKind]).authors(author ? [author] : undefined).limit(100);
 
   const latest = useRequestBuilder(NoteCollection, sub);
 
