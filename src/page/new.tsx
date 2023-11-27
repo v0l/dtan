@@ -90,7 +90,8 @@ export function NewPage() {
         .kind(TorrentKind)
         .content(obj.desc)
         .tag(["title", obj.name])
-        .tag(["btih", obj.btih]);
+        .tag(["btih", obj.btih])
+        .tag(["alt", `${obj.name}\nTorrent published on https://dtan.xyz`]);
 
       obj.tags.forEach((t) => v.tag(["t", t]));
       obj.files.forEach((f) => v.tag(["file", f.name, String(f.size)]));
