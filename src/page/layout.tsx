@@ -18,7 +18,8 @@ export function Layout() {
   return (
     <div className="container mx-auto">
       <header className="flex justify-between items-center p-1">
-        <Link to={"/"}>
+        <Link to={"/"} className="flex gap-1 items-center">
+          <img src="/logo_256.jpg" className="rounded-full" height={40} width={40} />
           <h1 className="font-bold uppercase">dtan.xyz</h1>
         </Link>
         {login ? <LoggedInHeader login={login} /> : <Button onClick={DoLogin}>Login</Button>}
