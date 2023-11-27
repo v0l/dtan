@@ -9,8 +9,12 @@ import { SnortContext } from "@snort/system-react";
 import { ProfilePage } from "./page/profile";
 import { NewPage } from "./page/new";
 import { TorrentPage } from "./page/torrent";
+import { SnortSystemDb } from "@snort/system-web";
 
-const System = new NostrSystem({});
+const db = new SnortSystemDb();
+const System = new NostrSystem({
+  db
+});
 const Routes = [
   {
     element: <Layout />,
