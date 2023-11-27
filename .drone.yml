@@ -1,0 +1,44 @@
+kind: pipeline
+type: kubernetes
+name: docker
+concurrency:
+  limit: 1
+trigger:
+  branch:
+    - main
+  event:
+    - push
+metadata:
+  namespace: git
+steps:
+  - name: Fetch tags
+    image: alpine/git
+    commands:
+      - git fetch --tags
+  - name: Build site
+    image: node:current-bullseye
+    volumes:
+      - name: cache
+        path: /cache
+    environment:
+      YARN_CACHE_FOLDER: /cache/.yarn-docker
+    commands:
+      - yarn install
+      - yarn build
+  - name: build docker image
+    image: r.j3ss.co/img
+    privileged: true
+    volumes:
+      - name: cache
+        path: /cache
+    environment:
+      TOKEN:
+        from_secret: docker_hub
+    commands:
+      - img login -u voidic -p $TOKEN
+      - img build -t voidic/dtan:latest --platform linux/amd64,linux/arm64 .
+      - img push voidic/dtan:latest
+volumes:
+  - name: cache
+    claim:
+      name: docker-cache
