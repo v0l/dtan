@@ -21,7 +21,7 @@ export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
       </thead>
       <tbody>
         {items.map((a) => (
-          <TorrentTableEntry item={a} />
+          <TorrentTableEntry item={a} key={a.id} />
         ))}
       </tbody>
     </table>

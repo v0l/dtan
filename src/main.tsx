@@ -10,10 +10,11 @@ import { ProfilePage } from "./page/profile";
 import { NewPage } from "./page/new";
 import { TorrentPage } from "./page/torrent";
 import { SnortSystemDb } from "@snort/system-web";
+import { SearchPage } from "./page/search";
 
 const db = new SnortSystemDb();
 const System = new NostrSystem({
-  db
+  db,
 });
 const Routes = [
   {
@@ -41,6 +42,10 @@ const Routes = [
       {
         path: "/e/:id",
         element: <TorrentPage />,
+      },
+      {
+        path: "/search/:term?",
+        element: <SearchPage />,
       },
     ],
   },

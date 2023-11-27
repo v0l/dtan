@@ -42,9 +42,11 @@ export function useLogin() {
     () => LoginState.snapshot(),
   );
   const system = useContext(SnortContext);
-  return session ? {
-    ...session,
-    builder: new EventPublisher(new Nip7Signer(), session.publicKey),
-    system
-  } : undefined;
+  return session
+    ? {
+        ...session,
+        builder: new EventPublisher(new Nip7Signer(), session.publicKey),
+        system,
+      }
+    : undefined;
 }

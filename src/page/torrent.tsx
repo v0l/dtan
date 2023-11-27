@@ -30,8 +30,8 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   const navigate = useNavigate();
   const name = item.tags.find((a) => a[0] === "title")?.at(1);
   const size = Number(item.tags.find((a) => a[0] === "size")?.at(1));
-  const files = item.tags.filter(a => a[0] === "file");
-  const tags = item.tags.filter(a => a[0] === "t").map(a => a[1]);
+  const files = item.tags.filter((a) => a[0] === "file");
+  const tags = item.tags.filter((a) => a[0] === "t").map((a) => a[1]);
 
   async function deleteTorrent() {
     const ev = await login?.builder?.delete(item.id);
@@ -50,9 +50,13 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
       <div className="flex flex-col gap-1 bg-slate-700 p-2 rounded">
         <div>Size: {FormatBytes(size)}</div>
         <div>Uploaded: {new Date(item.created_at * 1000).toLocaleDateString()}</div>
-        <div className="flex items-center gap-2">Tags: <div className="flex gap-1">
-          {tags.map(a => <div className="rounded p-1 bg-slate-400">#{a}</div>)}
-        </div>
+        <div className="flex items-center gap-2">
+          Tags:{" "}
+          <div className="flex gap-1">
+            {tags.map((a) => (
+              <div className="rounded p-1 bg-slate-400">#{a}</div>
+            ))}
+          </div>
         </div>
         <div>
           <MagnetLink item={item} className="flex gap-1 items-center">
@@ -64,14 +68,18 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
       <pre className="font-mono text-xs bg-slate-700 p-2 rounded overflow-y-auto">{item.content}</pre>
       <h3>Files</h3>
       <div className="flex flex-col gap-1 bg-slate-700 p-2 rounded">
-        {files.map(a => <div className="flex items-center gap-2">
-          {a[1]}
-          <small className="text-slate-500 font-semibold">{FormatBytes(Number(a[2]))}</small>
-        </div>)}
+        {files.map((a) => (
+          <div className="flex items-center gap-2">
+            {a[1]}
+            <small className="text-slate-500 font-semibold">{FormatBytes(Number(a[2]))}</small>
+          </div>
+        ))}
       </div>
-      {item.pubkey == login?.publicKey && <Button className="bg-red-600 hover:bg-red-800" onClick={deleteTorrent}>
-        Delete
-      </Button>}
+      {item.pubkey == login?.publicKey && (
+        <Button className="bg-red-600 hover:bg-red-800" onClick={deleteTorrent}>
+          Delete
+        </Button>
+      )}
     </div>
   );
 }
