@@ -7,6 +7,7 @@ import * as bencode from "../bencode";
 import { sha1 } from "@noble/hashes/sha1";
 import { bytesToHex } from "@noble/hashes/utils";
 import { useNavigate } from "react-router-dom";
+import { NostrLink } from "@snort/system";
 
 async function openFile(): Promise<File | undefined> {
   return new Promise((resolve) => {
@@ -103,7 +104,7 @@ export function NewPage() {
     if (ev) {
       await login.system.BroadcastEvent(ev);
     }
-    navigate("/");
+    navigate(`/e/${NostrLink.fromEvent(ev).encode()}`);
   }
 
   function renderCategories(a: Category, tags: Array<string>): ReactNode {
