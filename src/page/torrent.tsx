@@ -1,5 +1,5 @@
 import { unwrap } from "@snort/shared";
-import { NoteCollection, RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
+import { NostrLink, NoteCollection, RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
 import { useRequestBuilder } from "@snort/system-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FormatBytes, TorrentKind } from "../const";
@@ -7,6 +7,7 @@ import { ProfileImage } from "../element/profile-image";
 import { MagnetLink } from "../element/magnet";
 import { useLogin } from "../login";
 import { Button } from "../element/button";
+import { Comments } from "../element/comments";
 
 export function TorrentPage() {
   const location = useLocation();
@@ -28,6 +29,7 @@ export function TorrentPage() {
 export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   const login = useLogin();
   const navigate = useNavigate();
+  const link = NostrLink.fromEvent(item);
   const name = item.tags.find((a) => a[0] === "title")?.at(1);
   const size = item.tags
     .filter((a) => a[0] === "file")
@@ -83,6 +85,8 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
           Delete
         </Button>
       )}
+      <h3>Comments</h3>
+      <Comments link={link} />
     </div>
   );
 }

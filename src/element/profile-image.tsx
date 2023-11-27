@@ -6,9 +6,10 @@ import { Link } from "react-router-dom";
 type ProfileImageProps = HTMLProps<HTMLDivElement> & {
   pubkey?: string;
   size?: number;
+  withName?: boolean;
 };
 
-export function ProfileImage({ pubkey, size, ...props }: ProfileImageProps) {
+export function ProfileImage({ pubkey, size, withName, children, ...props }: ProfileImageProps) {
   const profile = useUserProfile(pubkey);
   const v = {
     backgroundImage: `url(${profile?.picture})`,
@@ -18,12 +19,19 @@ export function ProfileImage({ pubkey, size, ...props }: ProfileImageProps) {
     v.height = `${size}px`;
   }
   return (
-    <Link to={pubkey ? `/p/${new NostrLink(NostrPrefix.Profile, pubkey).encode()}` : ""}>
-      <div
-        {...props}
-        className="rounded-full aspect-square w-12 bg-slate-800 border border-slate-200 bg-cover bg-center"
-        style={v}
-      ></div>
-    </Link>
+    <div className="flex items-center justify-between">
+      <Link
+        to={pubkey ? `/p/${new NostrLink(NostrPrefix.Profile, pubkey).encode()}` : ""}
+        className="flex items-center gap-2"
+      >
+        <div
+          {...props}
+          className="rounded-full aspect-square w-12 bg-slate-800 border border-slate-200 bg-cover bg-center"
+          style={v}
+        ></div>
+        {withName === true && <>{profile?.name}</>}
+      </Link>
+      {children}
+    </div>
   );
 }

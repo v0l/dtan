@@ -1,10 +1,9 @@
 import "./torrent-list.css";
-import { hexToBech32 } from "@snort/shared";
-import { NostrLink, TaggedNostrEvent } from "@snort/system";
-import { useUserProfile } from "@snort/system-react";
+import { NostrLink, NostrPrefix, TaggedNostrEvent } from "@snort/system";
 import { FormatBytes } from "../const";
 import { Link } from "react-router-dom";
 import { MagnetLink } from "./magnet";
+import { Mention } from "./mention";
 
 export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
   return (
@@ -29,13 +28,11 @@ export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
 }
 
 function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
-  const profile = useUserProfile(item.pubkey);
   const name = item.tags.find((a) => a[0] === "title")?.at(1);
   const size = item.tags
     .filter((a) => a[0] === "file")
     .map((a) => Number(a[2]))
     .reduce((acc, v) => (acc += v), 0);
-  const npub = hexToBech32("npub", item.pubkey);
   return (
     <tr className="hover:bg-slate-800">
       <td>
@@ -69,7 +66,7 @@ function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
       </td>
       <td>{FormatBytes(size)}</td>
       <td>
-        <Link to={`/p/${npub}`}>{profile?.name ?? npub.slice(0, 12)}</Link>
+        <Mention link={new NostrLink(NostrPrefix.PublicKey, item.pubkey)} />
       </td>
     </tr>
   );
