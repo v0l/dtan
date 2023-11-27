@@ -32,3 +32,7 @@ a:not([href="/"], :has(button)) {
   text-decoration: dotted;
   text-decoration-line: underline;
 }
+
+.text {
+  white-space-collapse: preserve-breaks;
+}

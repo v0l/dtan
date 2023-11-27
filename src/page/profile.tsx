@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ProfileImage } from "../element/profile-image";
 import { parseNostrLink } from "@snort/system";
 import { LatestTorrents } from "../element/trending";
+import { Text } from "../element/text";
 
 export function ProfilePage() {
   const params = useParams();
@@ -25,7 +26,7 @@ export function ProfileSection({ pubkey }: { pubkey: string }) {
       <ProfileImage pubkey={pubkey} size={240} />
       <div className="flex flex-col gap-2">
         <h2>{profile?.name}</h2>
-        <p>{profile?.about}</p>
+        <Text content={profile?.about ?? ""} tags={[]} />
         {profile?.website && (
           <Link to={profile.website} target="_blank">
             {new URL(profile.website).hostname}
