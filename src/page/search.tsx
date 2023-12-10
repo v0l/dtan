@@ -27,7 +27,6 @@ export function SearchPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Search term={term} tags={tags} />
       <h2>Search Results</h2>
       <TorrentList items={data.data ?? []} />
     </div>
