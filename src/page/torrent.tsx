@@ -1,13 +1,15 @@
 import { unwrap } from "@snort/shared";
 import { NostrLink, NoteCollection, RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
 import { useRequestBuilder } from "@snort/system-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { FormatBytes, TorrentKind } from "../const";
 import { ProfileImage } from "../element/profile-image";
 import { MagnetLink } from "../element/magnet";
 import { useLogin } from "../login";
 import { Button } from "../element/button";
 import { Comments } from "../element/comments";
+import { useMemo } from "react";
+import RichTextContent from "../element/rich-text-content";
 
 export function TorrentPage() {
   const location = useLocation();
@@ -31,11 +33,11 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   const navigate = useNavigate();
   const link = NostrLink.fromEvent(item);
   const name = item.tags.find((a) => a[0] === "title")?.at(1);
-  const size = item.tags
-    .filter((a) => a[0] === "file")
-    .map((a) => Number(a[2]))
-    .reduce((acc, v) => (acc += v), 0);
+
   const files = item.tags.filter((a) => a[0] === "file");
+  const size = useMemo(() => files.map((a) => Number(a[2])).reduce((acc, v) => (acc += v), 0), [files]);
+  const sortedFiles = useMemo(() => files.sort((a, b) => (a[1] < b[1] ? -1 : 1)), [files]);
+
   const tags = item.tags.filter((a) => a[0] === "t").map((a) => a[1]);
 
   async function deleteTorrent() {
@@ -47,45 +49,70 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2 items-center text-xl">
+    <div className="flex flex-col gap-4 pb-8">
+      <div className="flex gap-4 items-center text-xl">
         <ProfileImage pubkey={item.pubkey} />
         {name}
       </div>
-      <div className="flex flex-col gap-1 bg-slate-700 p-2 rounded">
-        <div>Size: {FormatBytes(size)}</div>
-        <div>Uploaded: {new Date(item.created_at * 1000).toLocaleDateString()}</div>
-        <div className="flex items-center gap-2">
-          Tags:{" "}
-          <div className="flex gap-1">
-            {tags.map((a) => (
-              <div className="rounded p-1 bg-slate-400">#{a}</div>
-            ))}
+      <div className=" bg-neutral-900 p-4 rounded-lg">
+        <div className="flex flex-row">
+          <div className="flex flex-col gap-2 flex-grow">
+            <div>Size: {FormatBytes(size)}</div>
+            <div>Uploaded: {new Date(item.created_at * 1000).toLocaleDateString()}</div>
+            <div className="flex items-center gap-2">
+              Tags:{" "}
+              <div className="flex gap-2">
+                {tags.map((a) => (
+                  <div className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
+                    <Link to={`/search/?tags=${a}`}>#{a}</Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <MagnetLink
+              item={item}
+              className="flex gap-1 items-center px-4 py-3 rounded-full justify-center bg-indigo-800 hover:bg-indigo-700"
+            >
+              Get this torrent
+            </MagnetLink>
+            {item.pubkey == login?.publicKey && (
+              <Button type="danger" onClick={deleteTorrent}>
+                Delete
+              </Button>
+            )}
           </div>
         </div>
-        <div>
-          <MagnetLink item={item} className="flex gap-1 items-center">
-            Get this torrent
-          </MagnetLink>
-        </div>
       </div>
-      <h3>Description</h3>
-      <pre className="font-mono text-xs bg-slate-700 p-2 rounded overflow-y-auto">{item.content}</pre>
-      <h3>Files</h3>
-      <div className="flex flex-col gap-1 bg-slate-700 p-2 rounded">
-        {files.map((a) => (
-          <div className="flex items-center gap-2">
-            {a[1]}
-            <small className="text-slate-500 font-semibold">{FormatBytes(Number(a[2]))}</small>
-          </div>
-        ))}
-      </div>
-      {item.pubkey == login?.publicKey && (
-        <Button className="bg-red-600 hover:bg-red-800" onClick={deleteTorrent}>
-          Delete
-        </Button>
+      {item.content && (
+        <>
+          <h3 className="mt-2">Description</h3>
+          <pre className="font-mono text-sm bg-neutral-900 p-4 rounded-lg overflow-y-auto">
+            <RichTextContent text={item.content}></RichTextContent>
+          </pre>
+        </>
       )}
-      <h3>Comments</h3>
+      <h3 className="mt-2">Files</h3>
+      <div className="file-list flex flex-col gap-1 bg-neutral-900 p-4 rounded-lg">
+        <table className="w-max">
+          <thead>
+            <th>
+              <b>Filename</b>
+            </th>
+            <th>
+              <b>Size</b>
+            </th>
+          </thead>
+          {sortedFiles.map((a) => (
+            <tr>
+              <td className="pr-4">{a[1]}</td>
+              <td className="text-neutral-500 font-semibold text-right text-sm">{FormatBytes(Number(a[2]))}</td>
+            </tr>
+          ))}
+        </table>
+      </div>
+      <h3 className="mt-2">Comments</h3>
       <Comments link={link} />
     </div>
   );
