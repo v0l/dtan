@@ -19,8 +19,8 @@ export function Comments({ link }: { link: NostrLink }) {
       <WriteComment link={link} />
       {comments.data
         ?.sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
-        .map((a) => (
-          <div className="flex flex-col gap-2 rounded-lg p-4 bg-neutral-900">
+        .map((a, i) => (
+          <div key={i} className="flex flex-col gap-2 rounded-lg p-4 bg-neutral-900">
             <ProfileImage pubkey={a.pubkey} withName={true}>
               <span className="text-neutral-400 text-sm">{new Date(a.created_at * 1000).toLocaleString()}</span>
             </ProfileImage>
