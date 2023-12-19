@@ -10,7 +10,7 @@ export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
   return (
     <table className="torrent-list mb-8">
       <thead>
-        <tr className="bg-neutral-800 h-8">
+        <tr className="h-8">
           <th className="rounded-tl-lg">Category</th>
           <th>Name</th>
           <th>Uploaded</th>

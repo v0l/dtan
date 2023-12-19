@@ -9,7 +9,7 @@ import { useLogin } from "../login";
 import { Button } from "../element/button";
 import { Comments } from "../element/comments";
 import { useMemo } from "react";
-import RichTextContent from "../element/rich-text-content";
+import { Text } from "../element/text";
 
 export function TorrentPage() {
   const location = useLocation();
@@ -62,8 +62,8 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
             <div className="flex items-center gap-2">
               Tags:{" "}
               <div className="flex gap-2">
-                {tags.map((a) => (
-                  <div className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
+                {tags.map((a, i) => (
+                  <div key={i} className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
                     <Link to={`/search/?tags=${a}`}>#{a}</Link>
                   </div>
                 ))}
@@ -89,7 +89,7 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
         <>
           <h3 className="mt-2">Description</h3>
           <pre className="font-mono text-sm bg-neutral-900 p-4 rounded-lg overflow-y-auto">
-            <RichTextContent text={item.content}></RichTextContent>
+            <Text content={item.content} tags={item.tags}></Text>
           </pre>
         </>
       )}
@@ -97,19 +97,23 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
       <div className="file-list flex flex-col gap-1 bg-neutral-900 p-4 rounded-lg">
         <table className="w-max">
           <thead>
-            <th>
-              <b>Filename</b>
-            </th>
-            <th>
-              <b>Size</b>
-            </th>
-          </thead>
-          {sortedFiles.map((a) => (
             <tr>
+              <th>
+                <b>Filename</b>
+              </th>
+              <th>
+                <b>Size</b>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+          {sortedFiles.map((a, i) => (
+            <tr key={i}>
               <td className="pr-4">{a[1]}</td>
               <td className="text-neutral-500 font-semibold text-right text-sm">{FormatBytes(Number(a[2]))}</td>
             </tr>
           ))}
+          </tbody>
         </table>
       </div>
       <h3 className="mt-2">Comments</h3>
