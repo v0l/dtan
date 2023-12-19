@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Mention } from "./mention";
 import { Link } from "react-router-dom";
 
-export function Text({ content, tags }: { content: string; tags: Array<Array<string>> }) {
+export function Text({ content, tags, wrap = true }: { content: string; tags: Array<Array<string>>; wrap?: boolean }) {
   const frags = useMemo(() => transformText(content, tags), [content, tags]);
 
   function renderFrag(f: ParsedFragment, index: number) {
@@ -29,5 +29,8 @@ export function Text({ content, tags }: { content: string; tags: Array<Array<str
     }
   }
 
-  return <div className="text">{frags.map(renderFrag)}</div>;
+  if (wrap) {
+    return <div className="text">{frags.map(renderFrag)}</div>;
+  }
+  return frags.map(renderFrag);
 }

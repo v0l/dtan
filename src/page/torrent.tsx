@@ -89,7 +89,7 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
         <>
           <h3 className="mt-2">Description</h3>
           <pre className="font-mono text-sm bg-neutral-900 p-4 rounded-lg overflow-y-auto">
-            <Text content={item.content} tags={item.tags}></Text>
+            <Text content={item.content} tags={item.tags} wrap={false}></Text>
           </pre>
         </>
       )}
