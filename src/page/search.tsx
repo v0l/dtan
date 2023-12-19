@@ -3,7 +3,6 @@ import { useLocation, useParams } from "react-router-dom";
 import { TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "../element/torrent-list";
-import { Search } from "../element/search";
 
 export function SearchPage() {
   const params = useParams();
