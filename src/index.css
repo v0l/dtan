@@ -4,10 +4,16 @@
 
 html,
 body {
+  font-family: 'Outfit', Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 16px;
+  color: #adadad;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 24px;  
   background-color: black;
   color: white;
-  font-size: 16px;
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 h1 {
@@ -20,19 +26,15 @@ h3 {
   font-size: 21px;
 }
 
-input[type="text"],
-input[type="number"],
-textarea {
-  color: black;
-  padding: 4px;
-  border-radius: 4px;
-}
-
 a:not([href="/"], :has(button)) {
-  text-decoration: dotted;
-  text-decoration-line: underline;
+  text-decoration-line: none;
 }
 
 .text {
   white-space-collapse: preserve-breaks;
+}
+
+.file-list {
+  font-size: 15px;
+  font-weight: 400;
 }

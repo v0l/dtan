@@ -1,3 +1,4 @@
+import "./new.css";
 import { ReactNode, useState } from "react";
 import { Categories, Category, TorrentKind } from "../const";
 import { Button } from "../element/button";
@@ -42,19 +43,37 @@ async function openFile(): Promise<File | undefined> {
   });
 }
 
+type TorrentEntry = {
+  name: string;
+  desc: string;
+  btih: string;
+  tags: string[];
+  files: Array<{
+    name: string;
+    size: number;
+  }>;
+};
+
+function entryIsValid(entry: TorrentEntry) {
+  return (
+    entry.name &&
+    entry.btih &&
+    entry.files.length > 0 &&
+    entry.tags.length > 0 &&
+    entry.files.every((f) => f.name.length > 0)
+  );
+}
+
 export function NewPage() {
   const login = useLogin();
   const navigate = useNavigate();
 
-  const [obj, setObj] = useState({
+  const [obj, setObj] = useState<TorrentEntry>({
     name: "",
     desc: "",
     btih: "",
-    tags: [] as Array<string>,
-    files: [] as Array<{
-      name: string;
-      size: number;
-    }>,
+    tags: [],
+    files: [],
   });
 
   async function loadTorrent() {
@@ -110,7 +129,7 @@ export function NewPage() {
   function renderCategories(a: Category, tags: Array<string>): ReactNode {
     return (
       <>
-        <div className="flex gap-1 bg-slate-500 p-1 rounded">
+        <label className="category">
           <input
             type="radio"
             value={tags.join(",")}
@@ -123,8 +142,9 @@ export function NewPage() {
               }))
             }
           />
-          <label>{a?.name}</label>
-        </div>
+          <div data-checked={obj.tags.join(",") === tags.join(",")}>{a?.name}</div>
+        </label>
+
         {a.sub_category?.map((b) => renderCategories(b, [...tags, b.tag]))}
       </>
     );
@@ -132,57 +152,69 @@ export function NewPage() {
 
   return (
     <>
-      <h1>New</h1>
-      <div className="flex gap-1">
-        <Button onClick={loadTorrent}>Import from Torrent</Button>
-        <Button>Import from Magnet</Button>
+      <h2>New Torrent</h2>
+      <div className="flex gap-4 my-4">
+        <Button onClick={loadTorrent} type="primary">
+          Import from Torrent
+        </Button>
+        {/*<Button>Import from Magnet</Button>*/}
       </div>
-      <h2>Torrent Info</h2>
-      <form className="flex flex-col gap-2">
-        <div className="flex gap-2">
-          <div className="flex-1 flex flex-col gap-1">
-            <label>Title</label>
+      <form className="flex flex-col gap-2 bg-neutral-900 rounded-2xl p-6 mb-8">
+        <div className="flex gap-4">
+          <div className="flex-1 flex flex-col gap-2">
+            <label className="text-indigo-300">
+              Title <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
-              placeholder="raw noods"
+              className="px-4 py-2 rounded-xl bg-neutral-800 focus-visible:outline-none"
+              placeholder="Title of the torrent..."
               value={obj.name}
               onChange={(e) => setObj((o) => ({ ...o, name: e.target.value }))}
             />
-            <label>Info Hash</label>
+            <label className=" text-indigo-300 mt-2 ">
+              Info Hash <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
-              placeholder="hex"
+              className="px-4 py-2 rounded-xl bg-neutral-800 focus-visible:outline-none"
+              placeholder="Hash in hex format..."
               value={obj.btih}
               onChange={(e) => setObj((o) => ({ ...o, btih: e.target.value }))}
             />
-            <label>Category</label>
-            <div className="flex flex-col gap-1">
+            <label className=" text-indigo-300 mt-2">
+              Category <span className="text-red-500">*</span>
+            </label>
+            <div className="flex flex-col gap-2">
               {Categories.map((a) => (
                 <div className="flex flex-col gap-1">
-                  <div className="font-bold bg-slate-800 p-1">{a.name}</div>
+                  <div className="font-bold">{a.name}</div>
                   <div className="flex gap-1 flex-wrap">{renderCategories(a, [a.tag])}</div>
                 </div>
               ))}
             </div>
           </div>
           <div className="flex-1 flex flex-col gap-1">
-            <label>Description</label>
+            <label className="text-indigo-300">Description</label>
             <textarea
               rows={30}
-              className="font-mono text-xs"
+              className="p-4 rounded-xl bg-neutral-800 focus-visible:outline-none font-mono text-sm"
               value={obj.desc}
               onChange={(e) => setObj((o) => ({ ...o, desc: e.target.value }))}
             ></textarea>
           </div>
         </div>
-        <h2>Files</h2>
+
         <div className="flex flex-col gap-2">
+          <label className="text-indigo-300">
+            Files <span className="text-red-500">*</span>
+          </label>
           {obj.files.map((a, i) => (
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={a.name}
-                className="flex-1"
+                className="flex-1 px-3 py-1 bg-neutral-800 rounded-xl focus-visible:outline-none"
                 placeholder="collection1/IMG_00001.jpg"
                 onChange={(e) =>
                   setObj((o) => ({
@@ -198,6 +230,7 @@ export function NewPage() {
               />
               <input
                 type="number"
+                className="px-3 py-1 bg-neutral-800 rounded-xl focus-visible:outline-none"
                 value={a.size}
                 min={0}
                 placeholder="69000"
@@ -214,6 +247,8 @@ export function NewPage() {
                 }
               />
               <Button
+                small
+                type="secondary"
                 onClick={() =>
                   setObj((o) => ({
                     ...o,
@@ -227,6 +262,7 @@ export function NewPage() {
           ))}
         </div>
         <Button
+          type="secondary"
           onClick={() =>
             setObj((o) => ({
               ...o,
@@ -236,7 +272,9 @@ export function NewPage() {
         >
           Add File
         </Button>
-        <Button onClick={publish}>Publish</Button>
+        <Button className="mt-4" type="primary" disabled={!entryIsValid(obj)} onClick={publish}>
+          Publish
+        </Button>
       </form>
     </>
   );

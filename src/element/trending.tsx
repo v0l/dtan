@@ -15,7 +15,7 @@ export function LatestTorrents({ author }: { author?: string }) {
 
   return (
     <>
-      <h3>Latest Torrents</h3>
+      <h2>Latest Torrents</h2>
       <TorrentList items={latest.data ?? []} />
     </>
   );

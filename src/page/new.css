@@ -1,0 +1,32 @@
+label.category input {
+  border: 0px;
+  clip: rect(0px, 0px, 0px, 0px);
+  height: 1px;
+  width: 1px;
+  margin: -1px;
+  padding: 0px;
+  overflow: hidden;
+  white-space: nowrap;
+  position: absolute;
+  cursor: pointer;
+}
+
+label.category div {
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 1px;
+}
+
+label.category div:hover {
+  border: 1px solid white;
+  outline: none;
+  margin: 0px;
+}
+
+label.category div[data-checked="true"] {
+  background-color: #3730a3;
+  border: 1px solid white;
+  margin: 0px;
+}

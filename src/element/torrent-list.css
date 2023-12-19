@@ -1,11 +1,12 @@
 .torrent-list {
   width: 100%;
   border-collapse: collapse;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .torrent-list td,
 .torrent-list th {
-  border: 1px solid #333;
-  padding: 0px 5px;
-  font-size: 14px;
+  border-bottom: 1px solid #222;
+  padding: 0px 6px;
 }

@@ -26,7 +26,7 @@ export function ProfileImage({ pubkey, size, withName, children, ...props }: Pro
       >
         <div
           {...props}
-          className="rounded-full aspect-square w-12 bg-slate-800 border border-slate-200 bg-cover bg-center"
+          className="rounded-full aspect-square w-12 bg-neutral-800 border border-neutral-500 bg-cover bg-center"
           style={v}
         ></div>
         {withName === true && <>{profile?.name}</>}

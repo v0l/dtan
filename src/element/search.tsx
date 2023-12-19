@@ -12,19 +12,17 @@ export function Search(params: { term?: string; tags?: Array<string> }) {
   }, [params]);
 
   return (
-    <div>
-      <input
-        type="text"
-        placeholder="Search.."
-        className="p-3 rounded w-full"
-        value={term}
-        onChange={(e) => setTerm(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key == "Enter") {
-            navigate(`/search/${encodeURIComponent(term)}${tags.length > 0 ? `?tags=${tags.join(",")}` : ""}`);
-          }
-        }}
-      />
-    </div>
+    <input
+      type="text"
+      placeholder="Search..."
+      className="px-4 py-3 bg-neutral-800 rounded-full w-full focus-visible:outline-none"
+      value={term}
+      onChange={(e) => setTerm(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key == "Enter") {
+          navigate(`/search/${encodeURIComponent(term)}${tags.length > 0 ? `?tags=${tags.join(",")}` : ""}`);
+        }
+      }}
+    />
   );
 }

@@ -3,7 +3,6 @@ import { useLocation, useParams } from "react-router-dom";
 import { TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "../element/torrent-list";
-import { Search } from "../element/search";
 
 export function SearchPage() {
   const params = useParams();
@@ -26,9 +25,8 @@ export function SearchPage() {
   const data = useRequestBuilder(NoteCollection, rb);
 
   return (
-    <div className="flex flex-col gap-2">
-      <Search term={term} tags={tags} />
-      <h2>Search Results:</h2>
+    <div className="flex flex-col gap-4">
+      <h2>Search Results</h2>
       <TorrentList items={data.data ?? []} />
     </div>
   );
