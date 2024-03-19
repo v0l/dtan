@@ -1,7 +1,7 @@
-import { NoteCollection, RequestBuilder } from "@snort/system";
+import { RequestBuilder } from "@snort/system";
+import { useRequestBuilder } from "@snort/system-react";
 import { useLocation, useParams } from "react-router-dom";
 import { TorrentKind } from "../const";
-import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "../element/torrent-list";
 
 export function SearchPage() {
@@ -22,12 +22,12 @@ export function SearchPage() {
     f.tag("t", tags);
   }
 
-  const data = useRequestBuilder(NoteCollection, rb);
+  const data = useRequestBuilder(rb);
 
   return (
     <div className="flex flex-col gap-4">
       <h2>Search Results</h2>
-      <TorrentList items={data.data ?? []} />
+      <TorrentList items={data} />
     </div>
   );
 }

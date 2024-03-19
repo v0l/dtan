@@ -23,8 +23,16 @@ export function Layout() {
           <img src="/logo_256.jpg" className="rounded-full" height={40} width={40} />
           <h1 className="font-bold uppercase">dtan.xyz</h1>
         </Link>
-        <div className="w-1/2"><Search /></div>
-        {login ? <LoggedInHeader login={login} /> : <Button type="primary" onClick={DoLogin}>Login</Button>}
+        <div className="w-1/2">
+          <Search />
+        </div>
+        {login ? (
+          <LoggedInHeader login={login} />
+        ) : (
+          <Button type="primary" onClick={DoLogin}>
+            Login
+          </Button>
+        )}
       </header>
       <div>
         <Outlet />

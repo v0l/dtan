@@ -1,5 +1,5 @@
 import { unwrap } from "@snort/shared";
-import { NostrLink, NoteCollection, RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
+import { NostrLink, RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
 import { useRequestBuilder } from "@snort/system-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { FormatBytes, TorrentKind } from "../const";
@@ -21,9 +21,9 @@ export function TorrentPage() {
     .kinds([TorrentKind])
     .link(parseNostrLink(unwrap(id)));
 
-  const evNew = useRequestBuilder(NoteCollection, evState ? null : rb);
+  const evNew = useRequestBuilder(evState ? null : rb);
 
-  const ev = evState ?? evNew.data?.at(0);
+  const ev = evState ?? evNew?.at(0);
   if (!ev) return;
   return <TorrentDetail item={ev} />;
 }
@@ -107,12 +107,12 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
             </tr>
           </thead>
           <tbody>
-          {sortedFiles.map((a, i) => (
-            <tr key={i}>
-              <td className="pr-4">{a[1]}</td>
-              <td className="text-neutral-500 font-semibold text-right text-sm">{FormatBytes(Number(a[2]))}</td>
-            </tr>
-          ))}
+            {sortedFiles.map((a, i) => (
+              <tr key={i}>
+                <td className="pr-4">{a[1]}</td>
+                <td className="text-neutral-500 font-semibold text-right text-sm">{FormatBytes(Number(a[2]))}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

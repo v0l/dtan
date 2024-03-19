@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NostrLink, NoteCollection, RequestBuilder } from "@snort/system";
+import { NostrLink, RequestBuilder } from "@snort/system";
 import { useRequestBuilder } from "@snort/system-react";
 import { unwrap } from "@snort/shared";
 
@@ -12,13 +12,13 @@ import { TorrentCommentKind } from "../const";
 export function Comments({ link }: { link: NostrLink }) {
   const rb = new RequestBuilder(`replies:${link.encode()}`);
   rb.withFilter().kinds([TorrentCommentKind]).replyToLink([link]);
-  const comments = useRequestBuilder(NoteCollection, rb);
+  const comments = useRequestBuilder(rb);
 
   return (
     <div className="flex flex-col gap-2">
       <WriteComment link={link} />
-      {comments.data
-        ?.sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
+      {comments
+        .sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
         .map((a, i) => (
           <div key={i} className="flex flex-col gap-2 rounded-lg p-4 bg-neutral-900">
             <ProfileImage pubkey={a.pubkey} withName={true}>
@@ -63,7 +63,9 @@ function WriteComment({ link }: { link: NostrLink }) {
         ></textarea>
       </div>
       <div>
-        <Button type="primary" onClick={sendComment}>Send</Button>
+        <Button type="primary" onClick={sendComment}>
+          Send
+        </Button>
       </div>
     </div>
   );

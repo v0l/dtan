@@ -21,9 +21,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>((props, ref) =>
     }
   }
 
-  const colorScheme =
-    props.disabled ? "bg-neutral-900 text-neutral-600 border border-solid border-neutral-700" :
-    props.type == "danger"
+  const colorScheme = props.disabled
+    ? "bg-neutral-900 text-neutral-600 border border-solid border-neutral-700"
+    : props.type == "danger"
       ? "bg-red-900 hover:bg-red-600"
       : props.type == "primary"
         ? "bg-indigo-800 hover:bg-indigo-700"

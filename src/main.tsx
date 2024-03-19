@@ -2,28 +2,22 @@ import "./index.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouteObject, RouterProvider, createBrowserRouter } from "react-router-dom";
+
+import { SnortContext } from "@snort/system-react";
+
 import { Layout } from "./page/layout";
 import { HomePage } from "./page/home";
-import { NostrSystem } from "@snort/system";
-import { SnortContext } from "@snort/system-react";
 import { ProfilePage } from "./page/profile";
 import { NewPage } from "./page/new";
 import { TorrentPage } from "./page/torrent";
-import { SnortSystemDb } from "@snort/system-web";
 import { SearchPage } from "./page/search";
+import { System, initSystem } from "./system";
 
-const db = new SnortSystemDb();
-const System = new NostrSystem({
-  db,
-});
 const Routes = [
   {
     element: <Layout />,
     loader: async () => {
-      await System.Init();
-      for (const r of ["wss://nos.lol", "wss://relay.damus.io"]) {
-        await System.ConnectToRelay(r, { read: true, write: true });
-      }
+      await initSystem();
       return null;
     },
     children: [
