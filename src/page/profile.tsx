@@ -1,7 +1,7 @@
 import { useUserProfile } from "@snort/system-react";
 import { Link, useParams } from "react-router-dom";
 import { ProfileImage } from "../element/profile-image";
-import { MetadataCache, parseNostrLink } from "@snort/system";
+import { CachedMetadata, parseNostrLink } from "@snort/system";
 import { LatestTorrents } from "../element/trending";
 import { Text } from "../element/text";
 
@@ -34,7 +34,7 @@ export function ProfileSection({ pubkey }: { pubkey: string }) {
   );
 }
 
-function WebSiteLink({ profile }: { profile?: MetadataCache }) {
+function WebSiteLink({ profile }: { profile?: CachedMetadata }) {
   const website = profile?.website;
   if (!website) return;
 
