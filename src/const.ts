@@ -231,6 +231,7 @@ export function FormatBytes(b: number, f?: number) {
 }
 
 export const Trackers = [
+  "http://tracker.loadpeers.org:8080/xvRKfvAlnfuf5EfxTT5T0KIVPtbqAHnX/announce",
   "udp://tracker.coppersurfer.tk:6969/announce",
   "udp://tracker.openbittorrent.com:6969/announce",
   "udp://open.stealth.si:80/announce",
