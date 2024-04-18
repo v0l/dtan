@@ -33,8 +33,3 @@ a:not([href="/"], :has(button)) {
 .text {
   white-space-collapse: preserve-breaks;
 }
-
-.file-list {
-  font-size: 15px;
-  font-weight: 400;
-}

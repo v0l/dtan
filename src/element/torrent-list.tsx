@@ -2,9 +2,10 @@ import "./torrent-list.css";
 import { NostrLink, NostrPrefix, TaggedNostrEvent } from "@snort/system";
 import { FormatBytes } from "../const";
 import { Link } from "react-router-dom";
-import { MagnetLink } from "./magnet";
 import { Mention } from "./mention";
 import { useMemo } from "react";
+import { NostrTorrent } from "../nostr-torrent";
+import MagnetIcon from "./icon/magnet";
 
 export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
   return (
@@ -28,58 +29,44 @@ export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
   );
 }
 
-function TagList({ tags }: { tags: string[][] }) {
-  return tags
-    .filter((a) => a[0] === "t")
+function TagList({ torrent }: { torrent: NostrTorrent }) {
+  return torrent.categoryPath
     .slice(0, 3)
-    .map((current, index, allTags) => (
-      <TagListEntry key={current[1]} tags={allTags} startIndex={index} tag={current} />
-    ));
+    .map((current, index, allTags) => <TagListEntry key={current} tags={allTags} startIndex={index} tag={current} />);
 }
 
-function TagListEntry({ tags, startIndex, tag }: { tags: string[][]; startIndex: number; tag: string[] }) {
+function TagListEntry({ tags, startIndex, tag }: { tags: string[]; startIndex: number; tag: string }) {
   const tagUrl = useMemo(() => {
-    return encodeURIComponent(
-      tags
-        .slice(0, startIndex + 1)
-        .map((b) => b[1])
-        .join(","),
-    );
+    return encodeURIComponent(tags.slice(0, startIndex + 1).join(","));
   }, [tags, startIndex]);
 
   return (
     <>
-      <Link to={`/search/?tags=${tagUrl}`}>{tag[1]}</Link>
+      <Link to={`/search/?tags=${tagUrl}`}>{tag}</Link>
       {tags.length !== startIndex + 1 && " > "}
     </>
   );
 }
 
 function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
-  const { name, size } = useMemo(() => {
-    const name = item.tags.find((a) => a[0] === "title")?.at(1);
-    const size = item.tags
-      .filter((a) => a[0] === "file")
-      .map((a) => Number(a[2]))
-      .reduce((acc, v) => (acc += v), 0);
-    return { name, size };
-  }, [item]);
-
+  const torrent = NostrTorrent.fromEvent(item);
   return (
     <tr className="hover:bg-indigo-800">
       <td className="text-indigo-300">
-        <TagList tags={item.tags} />
+        <TagList torrent={torrent} />
       </td>
       <td className="break-words">
         <Link to={`/e/${NostrLink.fromEvent(item).encode()}`} state={item}>
-          {name}
+          {torrent.title}
         </Link>
       </td>
-      <td className="text-neutral-300">{new Date(item.created_at * 1000).toLocaleDateString()}</td>
+      <td className="text-neutral-300">{new Date(torrent.publishedAt * 1000).toLocaleDateString()}</td>
       <td>
-        <MagnetLink item={item} />
+        <Link to={torrent.magnetLink}>
+          <MagnetIcon />
+        </Link>
       </td>
-      <td className="whitespace-nowrap text-right text-neutral-300">{FormatBytes(size)}</td>
+      <td className="whitespace-nowrap text-right text-neutral-300">{FormatBytes(torrent.totalSize)}</td>
       <td className="text-indigo-300 whitespace-nowrap break-words text-ellipsis">
         <Mention link={new NostrLink(NostrPrefix.PublicKey, item.pubkey)} />
       </td>

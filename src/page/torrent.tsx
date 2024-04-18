@@ -4,12 +4,14 @@ import { useRequestBuilder } from "@snort/system-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { FormatBytes, TorrentKind } from "../const";
 import { ProfileImage } from "../element/profile-image";
-import { MagnetLink } from "../element/magnet";
 import { useLogin } from "../login";
 import { Button } from "../element/button";
 import { Comments } from "../element/comments";
-import { useMemo } from "react";
 import { Text } from "../element/text";
+import { NostrTorrent } from "../nostr-torrent";
+import TorrentFileList from "../element/file-tree";
+import CopyIcon from "../element/icon/copy";
+import MagnetIcon from "../element/icon/magnet";
 
 export function TorrentPage() {
   const location = useLocation();
@@ -32,13 +34,7 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   const login = useLogin();
   const navigate = useNavigate();
   const link = NostrLink.fromEvent(item);
-  const name = item.tags.find((a) => a[0] === "title")?.at(1);
-
-  const files = item.tags.filter((a) => a[0] === "file");
-  const size = useMemo(() => files.map((a) => Number(a[2])).reduce((acc, v) => (acc += v), 0), [files]);
-  const sortedFiles = useMemo(() => files.sort((a, b) => (a[1] < b[1] ? -1 : 1)), [files]);
-
-  const tags = item.tags.filter((a) => a[0] === "t").map((a) => a[1]);
+  const torrent = NostrTorrent.fromEvent(item);
 
   async function deleteTorrent() {
     const ev = await login?.builder?.delete(item.id);
@@ -50,33 +46,43 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
 
   return (
     <div className="flex flex-col gap-4 pb-8">
-      <div className="flex gap-4 items-center text-xl">
-        <ProfileImage pubkey={item.pubkey} />
-        {name}
-      </div>
-      <div className=" bg-neutral-900 p-4 rounded-lg">
+      <div className="text-2xl">{torrent.title}</div>
+      <div className="flex flex-col gap-2 bg-neutral-900 p-4 rounded-lg">
+        <ProfileImage pubkey={item.pubkey} withName={true} />
         <div className="flex flex-row">
           <div className="flex flex-col gap-2 flex-grow">
-            <div>Size: {FormatBytes(size)}</div>
-            <div>Uploaded: {new Date(item.created_at * 1000).toLocaleDateString()}</div>
+            <div>Size: {FormatBytes(torrent.totalSize)}</div>
+            <div>Uploaded: {new Date(torrent.publishedAt * 1000).toLocaleString()}</div>
             <div className="flex items-center gap-2">
               Tags:{" "}
               <div className="flex gap-2">
-                {tags.map((a, i) => (
-                  <div key={i} className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
-                    <Link to={`/search/?tags=${a}`}>#{a}</Link>
-                  </div>
-                ))}
+                {torrent.tags
+                  .filter((a) => a.type === undefined)
+                  .map((a, i) => (
+                    <div key={i} className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
+                      <Link to={`/search/?tags=${a.value}`}>#{a.value}</Link>
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <MagnetLink
-              item={item}
-              className="flex gap-1 items-center px-4 py-3 rounded-full justify-center bg-indigo-800 hover:bg-indigo-700"
+            <Link to={torrent.magnetLink}>
+              <Button type="primary" className="flex gap-1 items-center">
+                <MagnetIcon />
+                Get this torrent
+              </Button>
+            </Link>
+            <Button
+              type="primary"
+              onClick={async () => {
+                await navigator.clipboard.writeText(JSON.stringify(item, undefined, 2));
+              }}
+              className="flex gap-1 items-center"
             >
-              Get this torrent
-            </MagnetLink>
+              <CopyIcon />
+              Copy JSON
+            </Button>
             {item.pubkey == login?.publicKey && (
               <Button type="danger" onClick={deleteTorrent}>
                 Delete
@@ -94,27 +100,8 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
         </>
       )}
       <h3 className="mt-2">Files</h3>
-      <div className="file-list flex flex-col gap-1 bg-neutral-900 p-4 rounded-lg">
-        <table className="w-max">
-          <thead>
-            <tr>
-              <th>
-                <b>Filename</b>
-              </th>
-              <th>
-                <b>Size</b>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedFiles.map((a, i) => (
-              <tr key={i}>
-                <td className="pr-4">{a[1]}</td>
-                <td className="text-neutral-500 font-semibold text-right text-sm">{FormatBytes(Number(a[2]))}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex flex-col gap-1 bg-neutral-900 p-4 rounded-lg">
+        <TorrentFileList torrent={torrent} />
       </div>
       <h3 className="mt-2">Comments</h3>
       <Comments link={link} />

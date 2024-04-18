@@ -2097,6 +2097,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@snort/system-wasm@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@snort/system-wasm@npm:1.0.2"
+  checksum: 10c0/0cd754f8fceefc37d064423f46d57cb925faee9060b602eeef7d93cc92bc534d78e02b5b15531d96ee91dfa40d64c4cac82054597e9f59668fcf5c08fc871d5c
+  languageName: node
+  linkType: hard
+
 "@snort/system@npm:^1.2.12":
   version: 1.2.12
   resolution: "@snort/system@npm:1.2.12"
@@ -2117,14 +2124,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@snort/worker-relay@npm:^1.0.9":
-  version: 1.0.9
-  resolution: "@snort/worker-relay@npm:1.0.9"
+"@snort/worker-relay@npm:^1.0.10":
+  version: 1.0.10
+  resolution: "@snort/worker-relay@npm:1.0.10"
   dependencies:
     "@sqlite.org/sqlite-wasm": "npm:^3.45.1-build1"
     eventemitter3: "npm:^5.0.1"
     uuid: "npm:^9.0.1"
-  checksum: 10c0/0b70755724100682321c8318214df6d4f2f12383ac6ba12fbda7a3b0b765b2091fea1ff9205a2ff73631d8186e69abe4cadf7cb1fe1d637b7e5ed3456246244a
+  checksum: 10c0/7595163359bc09096f8e8e12f7ed903ac50d96d8fcc0064d6bd72180faf17abd368464fb3622306e0c4c1b05ec0c0e93fd1f1162e2594c313c7e4a9c547f6d9f
   languageName: node
   linkType: hard
 
@@ -3152,7 +3159,8 @@ __metadata:
     "@snort/shared": "npm:^1.0.14"
     "@snort/system": "npm:^1.2.12"
     "@snort/system-react": "npm:^1.2.12"
-    "@snort/worker-relay": "npm:^1.0.9"
+    "@snort/system-wasm": "npm:^1.0.2"
+    "@snort/worker-relay": "npm:^1.0.10"
     "@types/react": "npm:^18.2.37"
     "@types/react-dom": "npm:^18.2.15"
     "@typescript-eslint/eslint-plugin": "npm:^6.10.0"

@@ -47,11 +47,12 @@ type TorrentEntry = {
   name: string;
   desc: string;
   btih: string;
-  tags: string[];
+  tags: Array<string>;
   files: Array<{
     name: string;
     size: number;
   }>;
+  trackers: Array<string>;
 };
 
 function entryIsValid(entry: TorrentEntry) {
@@ -74,6 +75,7 @@ export function NewPage() {
     btih: "",
     tags: [],
     files: [],
+    trackers: [],
   });
 
   async function loadTorrent() {
@@ -99,6 +101,7 @@ export function NewPage() {
           size: a.length,
           name: a.path.map((b) => dec.decode(b)).join("/"),
         })),
+        trackers: [],
       });
     }
   }
@@ -271,6 +274,53 @@ export function NewPage() {
           }
         >
           Add File
+        </Button>
+        <div className="flex flex-col gap-2">
+          <label className="text-indigo-300">Trackers</label>
+          {obj.trackers.map((a, i) => (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={a}
+                className="flex-1 px-3 py-1 bg-neutral-800 rounded-xl focus-visible:outline-none"
+                placeholder="udp://mytracker.net:3333"
+                onChange={(e) =>
+                  setObj((o) => ({
+                    ...o,
+                    trackers: o.trackers.map((f, ii) => {
+                      if (ii === i) {
+                        return e.target.value;
+                      }
+                      return f;
+                    }),
+                  }))
+                }
+              />
+              <Button
+                small
+                type="secondary"
+                onClick={() =>
+                  setObj((o) => ({
+                    ...o,
+                    trackers: o.trackers.filter((_, ii) => i !== ii),
+                  }))
+                }
+              >
+                Remove
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button
+          type="secondary"
+          onClick={() =>
+            setObj((o) => ({
+              ...o,
+              trackers: [...o.trackers, ""],
+            }))
+          }
+        >
+          Add Tracker
         </Button>
         <Button className="mt-4" type="primary" disabled={!entryIsValid(obj)} onClick={publish}>
           Publish
