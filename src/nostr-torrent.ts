@@ -1,5 +1,5 @@
 import { unixNow } from "@snort/shared";
-import { NostrEvent, NotSignedNostrEvent } from "@snort/system";
+import { EventExt, NostrEvent, NotSignedNostrEvent } from "@snort/system";
 import { Trackers } from "./const";
 
 export interface TorrentFile {
@@ -8,13 +8,13 @@ export interface TorrentFile {
 }
 
 export interface TorrentTag {
-  readonly type: "tcat" | "newznab" | "tmdb" | "ttvdb" | "imdb" | "mal" | "anilist" | undefined;
+  readonly type: "tcat" | "newznab" | "tmdb" | "ttvdb" | "imdb" | "mal" | "anilist" | "generic";
   readonly value: string;
 }
 
 export class NostrTorrent {
   constructor(
-    readonly id: string,
+    readonly id: string | undefined,
     readonly title: string,
     readonly summary: string,
     readonly infoHash: string,
@@ -61,7 +61,7 @@ export class NostrTorrent {
       return tcat.split(",");
     } else {
       // v0: ordered tags before tcat proposal
-      const regularTags = this.tags.filter((a) => a.type === undefined).slice(0, 3);
+      const regularTags = this.tags.filter((a) => a.type === "generic").slice(0, 3);
       return regularTags.map((a) => a.value);
     }
   }
@@ -97,6 +97,35 @@ export class NostrTorrent {
   }
 
   /**
+   * Get the URL for a non-generic external reference tag ("i" tag)
+   */
+  static externalDbLink(tag: TorrentTag) {
+    const ts = tag.value.split(":");
+    switch (tag.type) {
+      case "imdb":
+        return `https://www.imdb.com/title/${tag.value}/`;
+      case "tmdb": {
+        if (ts.length === 2) {
+          return `https://www.themoviedb.org/${ts[0]}/${ts[1]}`;
+        }
+        break;
+      }
+      case "mal": {
+        if (ts.length === 2) {
+          return `https://myanimelist.net/${ts[0]}/${ts[1]}`;
+        }
+        break;
+      }
+      case "anilist": {
+        if (ts.length === 2) {
+          return `https://anilist.co/${ts[0]}/${ts[1]}`;
+        }
+        break;
+      }
+    }
+  }
+
+  /**
    * Get the nostr event for this torrent
    */
   toEvent(pubkey?: string) {
@@ -108,7 +137,7 @@ export class NostrTorrent {
       pubkey: pubkey ?? "",
       tags: [
         ["title", this.title],
-        ["i", this.infoHash],
+        ["x", this.infoHash],
       ],
     } as NotSignedNostrEvent;
 
@@ -118,10 +147,16 @@ export class NostrTorrent {
     for (const tracker of this.trackers) {
       ret.tags.push(["tracker", tracker]);
     }
-    for (const tag of this.tags) {
-      ret.tags.push(["t", `${tag.type !== undefined ? `${tag.type}:` : ""}${tag.value}`]);
+    for (const tag of this.tags.filter((a) => a.type === "generic")) {
+      ret.tags.push(["t", tag.value]);
+    }
+    for (const tag of this.tags.filter((a) => a.type !== "generic")) {
+      ret.tags.push(["i", `${tag.type}:${tag.value}`]);
     }
 
+    if (ret.id === undefined) {
+      ret.id = EventExt.createId(ret);
+    }
     return ret;
   }
 
@@ -147,7 +182,7 @@ export class NostrTorrent {
         }
         // v0: btih tag
         case "btih":
-        case "i": {
+        case "x": {
           infoHash = t[1];
           break;
         }
@@ -162,14 +197,9 @@ export class NostrTorrent {
           trackers.push(t[1]);
           break;
         }
-        case "t": {
+        case "i": {
           const kSplit = t[1].split(":", 2);
-          if (kSplit.length === 1) {
-            tags.push({
-              type: undefined,
-              value: t[1],
-            });
-          } else {
+          if (kSplit.length === 2) {
             tags.push({
               type: kSplit[0],
               value: kSplit[1],
@@ -177,8 +207,15 @@ export class NostrTorrent {
           }
           break;
         }
+        case "t": {
+          tags.push({
+            type: "generic",
+            value: t[1],
+          } as TorrentTag);
+          break;
+        }
+        // v0: imdb tag
         case "imdb": {
-          // v0: imdb tag
           tags.push({
             type: "imdb",
             value: t[1],

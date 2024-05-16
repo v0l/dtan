@@ -10,6 +10,7 @@ export function SearchPage() {
   const term = params.term as string | undefined;
   const q = new URLSearchParams(location.search ?? "");
   const tags = q.get("tags")?.split(",") ?? [];
+  const iz = q.getAll("i");
 
   const rb = new RequestBuilder(`search:${term}+${tags.join(",")}`);
   const f = rb
@@ -20,6 +21,9 @@ export function SearchPage() {
     .relay(["wss://relay.nostr.band", "wss://relay.noswhere.com"]);
   if (tags.length > 0) {
     f.tag("t", tags);
+  }
+  if (iz.length > 0) {
+    f.tag("i", iz);
   }
 
   const data = useRequestBuilder(rb);

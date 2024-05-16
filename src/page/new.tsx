@@ -1,14 +1,15 @@
 import "./new.css";
 import { ReactNode, useState } from "react";
-import { Categories, Category, TorrentKind } from "../const";
+import { Categories, Category } from "../const";
 import { Button } from "../element/button";
 import { useLogin } from "../login";
-import { dedupe } from "@snort/shared";
+import { dedupe, unixNow } from "@snort/shared";
 import * as bencode from "../bencode";
 import { sha1 } from "@noble/hashes/sha1";
 import { bytesToHex } from "@noble/hashes/utils";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { NostrLink } from "@snort/system";
+import { NostrTorrent, TorrentTag } from "../nostr-torrent";
 
 async function openFile(): Promise<File | undefined> {
   return new Promise((resolve) => {
@@ -47,12 +48,13 @@ type TorrentEntry = {
   name: string;
   desc: string;
   btih: string;
-  tags: Array<string>;
+  tcat: string;
   files: Array<{
     name: string;
     size: number;
   }>;
   trackers: Array<string>;
+  externalLabels: Array<TorrentTag>;
 };
 
 function entryIsValid(entry: TorrentEntry) {
@@ -60,7 +62,7 @@ function entryIsValid(entry: TorrentEntry) {
     entry.name &&
     entry.btih &&
     entry.files.length > 0 &&
-    entry.tags.length > 0 &&
+    entry.tcat.length > 0 &&
     entry.files.every((f) => f.name.length > 0)
   );
 }
@@ -68,14 +70,18 @@ function entryIsValid(entry: TorrentEntry) {
 export function NewPage() {
   const login = useLogin();
   const navigate = useNavigate();
+  const [newLabelType, setNewLabelType] = useState<TorrentTag["type"]>("imdb");
+  const [newLabelSubType, setNewLabelSubType] = useState("");
+  const [newLabelValue, setNewLabelValue] = useState("");
 
   const [obj, setObj] = useState<TorrentEntry>({
     name: "",
     desc: "",
     btih: "",
-    tags: [],
+    tcat: "",
     files: [],
     trackers: [],
+    externalLabels: [],
   });
 
   async function loadTorrent() {
@@ -91,66 +97,113 @@ export function NewPage() {
         length: number;
         name: Uint8Array;
       };
+      const annouce = dec.decode(torrent["announce"] as Uint8Array | undefined);
+      const announceList = (torrent["announce-list"] as Array<Array<Uint8Array>> | undefined)?.map((a) =>
+        dec.decode(a[0]),
+      );
 
       setObj({
         name: dec.decode(info.name),
         desc: dec.decode(torrent["comment"] as Uint8Array | undefined) ?? "",
         btih: bytesToHex(sha1(infoBuf)),
-        tags: [],
+        tcat: "",
         files: (info.files ?? [{ length: info.length, path: [info.name] }]).map((a) => ({
           size: a.length,
           name: a.path.map((b) => dec.decode(b)).join("/"),
         })),
-        trackers: [],
+        trackers: dedupe([annouce, ...(announceList ?? [])]),
+        externalLabels: [],
       });
     }
   }
 
   async function publish() {
     if (!login) return;
-    const ev = await login.builder.generic((eb) => {
-      const v = eb
-        .kind(TorrentKind)
-        .content(obj.desc)
-        .tag(["title", obj.name])
-        .tag(["btih", obj.btih])
-        .tag(["alt", `${obj.name}\nTorrent published on https://dtan.xyz`]);
-
-      obj.tags.forEach((t) => v.tag(["t", t]));
-      obj.files.forEach((f) => v.tag(["file", f.name, String(f.size)]));
-
-      return v;
-    });
+    const torrent = new NostrTorrent(
+      undefined,
+      obj.name,
+      obj.desc,
+      obj.btih,
+      unixNow(),
+      obj.files,
+      obj.trackers,
+      obj.externalLabels.concat([
+        {
+          type: "tcat",
+          value: obj.tcat,
+        },
+      ]),
+    );
+    const ev = torrent.toEvent(login.publicKey);
+    ev.tags.push(["alt", `${obj.name}\nTorrent published on https://dtan.xyz`]);
     console.debug(ev);
 
     if (ev) {
-      await login.system.BroadcastEvent(ev);
+      const evSigned = await login.builder.signer.sign(ev);
+      login.system.BroadcastEvent(evSigned);
+      navigate(`/e/${NostrLink.fromEvent(evSigned).encode()}`);
     }
-    navigate(`/e/${NostrLink.fromEvent(ev).encode()}`);
   }
 
   function renderCategories(a: Category, tags: Array<string>): ReactNode {
+    const tcat = tags.join(",");
     return (
       <>
         <label className="category">
           <input
             type="radio"
-            value={tags.join(",")}
+            value={tcat}
             name="category"
-            checked={obj.tags.join(",") === tags.join(",")}
+            checked={obj.tcat === tcat}
             onChange={(e) =>
               setObj((o) => ({
                 ...o,
-                tags: e.target.checked ? dedupe(e.target.value.split(",")) : [],
+                tcat: e.target.value,
               }))
             }
           />
-          <div data-checked={obj.tags.join(",") === tags.join(",")}>{a?.name}</div>
+          <div data-checked={obj.tcat === tcat}>{a?.name}</div>
         </label>
 
         {a.sub_category?.map((b) => renderCategories(b, [...tags, b.tag]))}
       </>
     );
+  }
+
+  function externalDbLogo(type: TorrentTag["type"]) {
+    switch (type) {
+      case "imdb":
+        return (
+          <img
+            className="h-8"
+            title="IMDB"
+            src="https://m.media-amazon.com/images/G/01/imdb/images-ANDW73HA/favicon_desktop_32x32._CB1582158068_.png"
+          />
+        );
+      case "tmdb":
+        return (
+          <img
+            className="h-8"
+            title="TheMovieDatabase"
+            src="https://www.themoviedb.org/assets/2/favicon-32x32-543a21832c8931d3494a68881f6afcafc58e96c5d324345377f3197a37b367b5.png"
+          />
+        );
+      case "ttvdb":
+        return <img className="h-8" title="TheTVDatabase" src="https://thetvdb.com/images/icon.png" />;
+      case "mal":
+        return (
+          <img
+            className="h-8"
+            title="MyAnimeList"
+            src="https://myanimelist.net/img/common/pwa/launcher-icon-0-75x.png"
+          />
+        );
+      case "anilist":
+        return <img className="h-8" title="AniList" src="https://anilist.co/img/icons/favicon-32x32.png" />;
+      case "newznab":
+        return <img className="h-8" title="newznab" src="https://www.newznab.com/favicon.ico" />;
+    }
+    return <div className="border border-neutral-600 rounded-xl px-2">{type}</div>;
   }
 
   return (
@@ -209,6 +262,136 @@ export function NewPage() {
         </div>
 
         <div className="flex flex-col gap-2">
+          <label className="text-indigo-300">External Ids</label>
+          <div className="flex gap-2">
+            <select
+              value={newLabelType}
+              onChange={(e) => setNewLabelType(e.target.value as TorrentTag["type"])}
+              className="p-4 rounded-xl bg-neutral-800 focus-visible:outline-none"
+            >
+              <option value="imdb">IMDB</option>
+              <option value="newznab">newznab</option>
+              <option value="tmdb">TMDB (TheMovieDatabase)</option>
+              <option value="ttvdb">TTVDB (TheTVDatabase)</option>
+              <option value="mal">MAL (MyAnimeList)</option>
+              <option value="anilist">AniList</option>
+            </select>
+            {(() => {
+              switch (newLabelType) {
+                case "mal":
+                case "anilist": {
+                  if (newLabelSubType !== "anime" && newLabelSubType !== "manga") {
+                    setNewLabelSubType("anime");
+                  }
+                  return (
+                    <select
+                      className="p-4 rounded-xl bg-neutral-800 focus-visible:outline-none"
+                      value={newLabelSubType}
+                      onChange={(e) => setNewLabelSubType(e.target.value)}
+                    >
+                      <option value="anime">Anime</option>
+                      <option value="manga">Manga</option>
+                    </select>
+                  );
+                }
+                case "tmdb": {
+                  if (newLabelSubType !== "tv" && newLabelSubType !== "movie") {
+                    setNewLabelSubType("tv");
+                  }
+                  return (
+                    <select
+                      className="p-4 rounded-xl bg-neutral-800 focus-visible:outline-none"
+                      value={newLabelSubType}
+                      onChange={(e) => setNewLabelSubType(e.target.value)}
+                    >
+                      <option value="tv">TV</option>
+                      <option value="movie">Movie</option>
+                    </select>
+                  );
+                }
+                case "ttvdb": {
+                  if (newLabelSubType !== "series" && newLabelSubType !== "movies") {
+                    setNewLabelSubType("series");
+                  }
+                  return (
+                    <select
+                      className="p-4 rounded-xl bg-neutral-800 focus-visible:outline-none"
+                      value={newLabelSubType}
+                      onChange={(e) => setNewLabelSubType(e.target.value)}
+                    >
+                      <option value="series">Series</option>
+                      <option value="movies">Movie</option>
+                    </select>
+                  );
+                }
+                default: {
+                  if (newLabelSubType != "") {
+                    setNewLabelSubType("");
+                  }
+                }
+              }
+            })()}
+            <input
+              type="text"
+              className="p-4 rounded-xl bg-neutral-800 focus-visible:outline-none font-mono text-sm"
+              value={newLabelValue}
+              onChange={(e) => setNewLabelValue(e.target.value)}
+            />
+            <Button
+              type="secondary"
+              onClick={() => {
+                const existing = obj.externalLabels.find((a) => a.type === newLabelType);
+                if (!existing) {
+                  obj.externalLabels.push({
+                    type: newLabelType as TorrentTag["type"],
+                    value: `${newLabelSubType ? `${newLabelSubType}:` : ""}${newLabelValue}`,
+                  });
+                  setObj({ ...obj });
+                  setNewLabelValue("");
+                }
+              }}
+            >
+              Add
+            </Button>
+          </div>
+          <div className="flex flex-col gap-2">
+            {obj.externalLabels.map((a) => {
+              const link = NostrTorrent.externalDbLink(a);
+              return (
+                <div className="flex justify-between bg-neutral-800 px-3 py-1 rounded-xl">
+                  <div className="flex gap-2 items-center">
+                    {externalDbLogo(a.type)}
+                    {link && (
+                      <>
+                        <Link to={link} target="_blank" className="text-indigo-400 hover:underline">
+                          {a.value}
+                        </Link>
+                      </>
+                    )}
+                    {!link && a.value}
+                  </div>
+                  <Button
+                    type="danger"
+                    small={true}
+                    onClick={() =>
+                      setObj((o) => {
+                        const idx = o.externalLabels.findIndex((b) => b.type === a.type);
+                        if (idx !== -1) {
+                          o.externalLabels.splice(idx, 1);
+                        }
+                        return { ...o };
+                      })
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
           <label className="text-indigo-300">
             Files <span className="text-red-500">*</span>
           </label>
@@ -251,7 +434,7 @@ export function NewPage() {
               />
               <Button
                 small
-                type="secondary"
+                type="danger"
                 onClick={() =>
                   setObj((o) => ({
                     ...o,

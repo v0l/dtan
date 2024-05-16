@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import { HTMLProps, forwardRef, useState } from "react";
 
-type ButtonProps = Omit<HTMLProps<HTMLButtonElement>, "onClick"> & {
+type ButtonProps = Omit<HTMLProps<HTMLButtonElement>, "onClick" | "small"> & {
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => Promise<void> | void;
   type: "primary" | "secondary" | "danger";
   small?: boolean;
@@ -34,7 +34,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>((props, ref) =>
       {...props}
       type="button"
       className={classNames(
-        props.small ? "px-3 py-1 rounded-2xl" : "px-4 py-3 rounded-full ",
+        props.small ? "px-3 py-1 rounded-2xl" : "px-4 py-3 rounded-xl ",
         "flex gap-1 items-center justify-center  whitespace-nowrap",
         colorScheme,
         props.className,

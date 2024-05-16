@@ -56,15 +56,24 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
             <div className="flex items-center gap-2">
               Tags:{" "}
               <div className="flex gap-2">
-                {torrent.tags
-                  .filter((a) => a.type === undefined)
-                  .map((a, i) => (
-                    <div key={i} className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
-                      <Link to={`/search/?tags=${a.value}`}>#{a.value}</Link>
-                    </div>
-                  ))}
+                {torrent.tags.map((a, i) => {
+                  if (a.type === "generic") {
+                    return (
+                      <div key={i} className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
+                        <Link to={`/search/?tags=${a.value}`}>#{a.value}</Link>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div key={i} className="rounded-2xl py-1 px-4 bg-indigo-800 hover:bg-indigo-700">
+                        <Link to={`/search/?i=${a.type}:${a.value}`}>#{a.value}</Link>
+                      </div>
+                    );
+                  }
+                })}
               </div>
             </div>
+            {torrent.trackers.length > 0 && <div>Trackers: {torrent.trackers.length}</div>}
           </div>
           <div className="flex flex-col gap-2">
             <Link to={torrent.magnetLink}>
