@@ -26,7 +26,7 @@ steps:
       - yarn install
       - yarn build
   - name: build docker image
-    image: r.j3ss.co/img
+    image: docker
     privileged: true
     volumes:
       - name: cache
@@ -35,9 +35,10 @@ steps:
       TOKEN:
         from_secret: docker_hub
     commands:
-      - img login -u voidic -p $TOKEN
-      - img build -t voidic/dtan:latest --platform linux/amd64,linux/arm64 .
-      - img push voidic/dtan:latest
+      - dockerd &
+      - docker login -u voidic -p $TOKEN
+      - docker buildx build --push -t voidic/dtan:latest --platform linux/amd64,linux/arm64 .
+      - kill $(cat /var/run/docker.pid)
 volumes:
   - name: cache
     claim:
