@@ -62,8 +62,5 @@ export async function initSystem() {
     System.Init(),
   ];
 
-  for (const r of ["wss://nos.lol", "wss://relay.damus.io", "wss://relay.nostr.band"]) {
-    System.ConnectToRelay(r, { read: true, write: true });
-  }
   await Promise.all(tasks);
 }

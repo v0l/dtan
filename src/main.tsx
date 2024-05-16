@@ -12,8 +12,9 @@ import { NewPage } from "./page/new";
 import { TorrentPage } from "./page/torrent";
 import { SearchPage } from "./page/search";
 import { System, initSystem } from "./system";
+import { RelaysPage } from "./page/relays";
 
-const Routes = [
+const routes = [
   {
     element: <Layout />,
     loader: async () => {
@@ -41,15 +42,19 @@ const Routes = [
         path: "/search/:term?",
         element: <SearchPage />,
       },
+      {
+        path: "/relays",
+        element: <RelaysPage />,
+      },
     ],
   },
 ] as Array<RouteObject>;
 
-const Router = createBrowserRouter(Routes);
+const router = createBrowserRouter(routes);
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <SnortContext.Provider value={System}>
-      <RouterProvider router={Router} />
+      <RouterProvider router={router} />
     </SnortContext.Provider>
   </React.StrictMode>,
 );
