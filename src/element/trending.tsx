@@ -2,10 +2,9 @@ import { RequestBuilder } from "@snort/system";
 import { TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "./torrent-list";
-import { WoTFilterToggle } from "./wot-filter-toggle";
-import { useWoTFilter } from "../wot-filter";
 import useWoT from "../wot";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Button } from "./button";
 
 export function LatestTorrents({ author }: { author?: string }) {
   const sub = new RequestBuilder(`torrents:latest:${author}`);
@@ -15,24 +14,38 @@ export function LatestTorrents({ author }: { author?: string }) {
     .authors(author ? [author] : undefined);
 
   const latest = useRequestBuilder(sub);
-  const filter = useWoTFilter();
+  const [filterEnabled, setFilterEnabled] = useState(false);
+  const [maxDistance, setMaxDistance] = useState(2);
   const wot = useWoT();
 
   const filteredTorrents = useMemo(() => {
-    if (!filter.enabled) {
+    if (!filterEnabled) {
       return latest;
     }
     // Filter by WoT distance
     return latest.filter(torrent => {
       const distance = wot.followDistance(torrent.pubkey);
-      return distance <= filter.maxDistance;
+      return distance <= maxDistance;
     });
-  }, [latest, filter.enabled, filter.maxDistance, wot]);
+  }, [latest, filterEnabled, maxDistance, wot]);
 
   return (
     <>
       <h2>Latest Torrents</h2>
-      <WoTFilterToggle />
+      <div className="flex items-center gap-2 mb-4">
+        <Button
+          type={filterEnabled ? "primary" : "secondary"}
+          small
+          onClick={() => setFilterEnabled(!filterEnabled)}
+        >
+          {filterEnabled ? "WoT Filter: ON" : "WoT Filter: OFF"}
+        </Button>
+        {filterEnabled && (
+          <span className="text-sm text-neutral-400">
+            Filtering by Web of Trust (max distance: {maxDistance})
+          </span>
+        )}
+      </div>
       <TorrentList items={filteredTorrents} />
     </>
   );
