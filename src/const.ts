@@ -216,6 +216,7 @@ export const Categories = [
 
 export const TorrentKind = 2003 as EventKind;
 export const TorrentCommentKind = 2004 as EventKind;
+export const ZapKind = 9735 as EventKind;
 
 export function FormatBytes(b: number, f?: number) {
   f ??= 2;
@@ -228,6 +229,36 @@ export function FormatBytes(b: number, f?: number) {
   if (b >= MiB) return (b / MiB).toFixed(f) + " MiB";
   if (b >= kiB) return (b / kiB).toFixed(f) + " KiB";
   return b.toFixed(f) + " B";
+}
+
+const intlSats = new Intl.NumberFormat(undefined, {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+const intlShortSats = new Intl.NumberFormat(undefined, {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+function formatShort(fmt: Intl.NumberFormat, n: number) {
+  if (n < 2e3) {
+    return n;
+  } else if (n < 1e6) {
+    return `${fmt.format(n / 1e3)}K`;
+  } else if (n < 1e9) {
+    return `${fmt.format(n / 1e6)}M`;
+  } else {
+    return `${fmt.format(n / 1e9)}G`;
+  }
+}
+
+export function formatSats(n: number) {
+  return formatShort(intlSats, n);
+}
+
+export function formatSatsCompact(n: number) {
+  return formatShort(intlShortSats, n);
 }
 
 export const Trackers = [
