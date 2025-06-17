@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NostrLink, RequestBuilder, TaggedNostrEvent } from "@snort/system";
+import { NostrLink, RequestBuilder, TaggedNostrEvent, parseZap } from "@snort/system";
 import { useRequestBuilder } from "@snort/system-react";
 import { unwrap } from "@snort/shared";
 
@@ -14,55 +14,26 @@ type CommentInteraction = TaggedNostrEvent & { type: 'comment' };
 type ZapInteraction = TaggedNostrEvent & { type: 'zap'; amount: number };
 type Interaction = CommentInteraction | ZapInteraction;
 
-// Helper function to extract sats amount from zap receipt
+// Helper function to extract sats amount from zap receipt using parseZap
 function getZapAmount(zapEvent: TaggedNostrEvent): number {
-  // Look for the "bolt11" tag which contains the lightning invoice
-  const bolt11Tag = zapEvent.tags.find((tag: string[]) => tag[0] === "bolt11");
-  if (!bolt11Tag || !bolt11Tag[1]) return 0;
-  
   try {
-    // Decode the bolt11 invoice to get the amount
-    // For now, let's try to extract from the description tag which often contains the amount
-    const descriptionTag = zapEvent.tags.find((tag: string[]) => tag[0] === "description");
-    if (descriptionTag && descriptionTag[1]) {
-      try {
-        const zapRequest = JSON.parse(descriptionTag[1]);
-        const amountTag = zapRequest.tags?.find((tag: string[]) => tag[0] === "amount");
-        if (amountTag && amountTag[1]) {
-          return parseInt(amountTag[1]) / 1000; // Convert millisats to sats
-        }
-      } catch {
-        // If JSON parsing fails, try to find amount in bolt11 directly
-      }
-    }
-    
-    // Fallback: try to extract amount from bolt11 invoice string
-    const bolt11 = bolt11Tag[1];
-    const amountMatch = bolt11.match(/(\d+)[nm]?$/); // Look for amount at end
-    if (amountMatch) {
-      const amount = parseInt(amountMatch[1]);
-      // If ends with 'n', it's nanosats; if 'm', it's millisats; otherwise assume sats
-      if (bolt11.endsWith('n')) return Math.floor(amount / 1000000000); 
-      if (bolt11.endsWith('m')) return Math.floor(amount / 1000);
-      return amount;
-    }
+    const zapInfo = parseZap(zapEvent);
+    return zapInfo?.amount ?? 0;
   } catch (e) {
     console.warn("Failed to parse zap amount:", e);
+    return 0;
   }
-  
-  return 0;
 }
 
 export function Comments({ link }: { link: NostrLink }) {
-  // Fetch comments
-  const commentRb = new RequestBuilder(`replies:${link.encode()}`);
-  commentRb.withFilter().kinds([TorrentCommentKind]).replyToLink([link]);
-  const comments = useRequestBuilder(commentRb);
+  // Fetch both comments and zaps in a single filter
+  const rb = new RequestBuilder(`interactions:${link.encode()}`);
+  rb.withFilter().kinds([TorrentCommentKind, ZapKind]).replyToLink([link]);
+  const interactions = useRequestBuilder(rb);
 
-  // Fetch zaps
-  const zapRb = new RequestBuilder(`zaps:${link.encode()}`);
-  zapRb.withFilter().kinds([ZapKind]).replyToLink([link]);
-  const zaps = useRequestBuilder(zapRb);
+  // Separate comments and zaps
+  const comments = interactions.filter(event => event.kind === TorrentCommentKind);
+  const zaps = interactions.filter(event => event.kind === ZapKind);
 
   // Calculate total zaps
   const totalZaps = zaps.reduce((total, zap) => total + getZapAmount(zap), 0);
