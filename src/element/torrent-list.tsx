@@ -6,6 +6,8 @@ import { Mention } from "./mention";
 import { useMemo } from "react";
 import { NostrTorrent } from "../nostr-torrent";
 import MagnetIcon from "./icon/magnet";
+import { useWoT, WoTState } from "../wot";
+import { Button } from "./button";
 
 export function TorrentList({ items }: { items: Array<TaggedNostrEvent> }) {
   return (
@@ -50,6 +52,9 @@ function TagListEntry({ tags, startIndex, tag }: { tags: string[]; startIndex: n
 
 function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
   const torrent = NostrTorrent.fromEvent(item);
+  const wot = useWoT();
+  const isTrusted = wot.trustedPubkeys.has(item.pubkey);
+
   return (
     <tr className="hover:bg-indigo-800">
       <td className="text-indigo-300">
@@ -68,7 +73,22 @@ function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
       </td>
       <td className="whitespace-nowrap text-right text-neutral-300">{FormatBytes(torrent.totalSize)}</td>
       <td className="text-indigo-300 whitespace-nowrap break-words text-ellipsis">
-        <Mention link={new NostrLink(NostrPrefix.PublicKey, item.pubkey)} />
+        <div className="flex items-center gap-2">
+          <Mention link={new NostrLink(NostrPrefix.PublicKey, item.pubkey)} />
+          <Button
+            type={isTrusted ? "danger" : "secondary"}
+            small
+            onClick={() => {
+              if (isTrusted) {
+                WoTState.removeTrustedPubkey(item.pubkey);
+              } else {
+                WoTState.addTrustedPubkey(item.pubkey);
+              }
+            }}
+          >
+            {isTrusted ? "−" : "+"}
+          </Button>
+        </div>
       </td>
     </tr>
   );
