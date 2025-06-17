@@ -27,6 +27,7 @@ export class WasmPowWorker implements PowMiner {
 export const System = new NostrSystem({
   cachingRelay: workerRelay,
   optimizer: WasmOptimizer,
+  buildFollowGraph: true,
 });
 
 let didInit = false;

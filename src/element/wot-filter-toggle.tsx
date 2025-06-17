@@ -1,21 +1,21 @@
 import { Button } from "./button";
-import { useWoT, WoTState } from "../wot";
+import { useWoTFilter, WoTFilterState } from "../wot-filter";
 
 export function WoTFilterToggle() {
-  const wot = useWoT();
+  const filter = useWoTFilter();
 
   return (
     <div className="flex items-center gap-2 mb-4">
       <Button
-        type={wot.enabled ? "primary" : "secondary"}
+        type={filter.enabled ? "primary" : "secondary"}
         small
-        onClick={() => WoTState.setEnabled(!wot.enabled)}
+        onClick={() => WoTFilterState.setEnabled(!filter.enabled)}
       >
-        {wot.enabled ? "WoT Filter: ON" : "WoT Filter: OFF"}
+        {filter.enabled ? "WoT Filter: ON" : "WoT Filter: OFF"}
       </Button>
-      {wot.enabled && (
+      {filter.enabled && (
         <span className="text-sm text-neutral-400">
-          Showing only torrents from {wot.trustedPubkeys.size} trusted users
+          Filtering by Web of Trust (max distance: {filter.maxDistance})
         </span>
       )}
     </div>
