@@ -15,7 +15,7 @@ export function LatestTorrents({ author }: { author?: string }) {
 
   const latest = useRequestBuilder(sub);
   const [filterEnabled, setFilterEnabled] = useState(false);
-  const [maxDistance, setMaxDistance] = useState(2);
+  const [maxDistance] = useState(2);
   const wot = useWoT();
 
   const filteredTorrents = useMemo(() => {
