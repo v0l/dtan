@@ -8,6 +8,7 @@ import { useContext, useEffect } from "react";
 import { SnortContext } from "@snort/system-react";
 import { RelaySettings, SystemInterface } from "@snort/system";
 import { FollowListLoader } from "../follow-loader";
+import { WoTDebugger } from "../element/wot-debugger";
 
 export function Layout() {
   const login = useLogin();
@@ -69,6 +70,7 @@ export function Layout() {
   return (
     <div className="container mx-auto">
       <FollowListLoader />
+      <WoTDebugger />
       <header className="flex gap-4 items-center pt-4 pb-6">
         <Link to={"/"} className="flex gap-2 items-center">
           <img src="/logo_256.jpg" className="rounded-full" height={40} width={40} />
