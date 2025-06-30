@@ -8,6 +8,7 @@ export interface WoT {
   followDistance: (pk: string) => number;
   followedByCount: (pk: string) => number;
   followedBy: (pk: string) => Set<string>;
+  instance: any; // The social graph instance
 }
 
 function wotOnSystem(system: SystemInterface) {

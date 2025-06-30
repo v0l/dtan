@@ -214,6 +214,7 @@ export const Categories = [
   },
 ] as Array<Category>;
 
+export const ContactListKind = 3 as EventKind;
 export const TorrentKind = 2003 as EventKind;
 export const TorrentCommentKind = 2004 as EventKind;
 export const ZapKind = 9735 as EventKind;
