@@ -62,7 +62,7 @@ function TorrentTableEntry({ item }: { item: TaggedNostrEvent }) {
       </td>
       <td className="break-words">
         <Link to={`/e/${NostrLink.fromEvent(item).encode()}`} state={item}>
-          {torrent.title}
+          {torrent.title?.trim() || "Untitled"}
         </Link>
       </td>
       <td className="text-neutral-300">{new Date(torrent.publishedAt * 1000).toLocaleDateString()}</td>
