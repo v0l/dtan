@@ -8,7 +8,7 @@ export interface WoT {
   followDistance: (pk: string) => number;
   followedByCount: (pk: string) => number;
   followedBy: (pk: string) => Set<string>;
-  instance: any; // The social graph instance
+  instance: unknown; // The social graph instance
 }
 
 function wotOnSystem(system: SystemInterface) {
@@ -17,7 +17,14 @@ function wotOnSystem(system: SystemInterface) {
     sortEvents: (events: Array<TaggedNostrEvent>) =>
       events.sort((a, b) => sgi.getFollowDistance(a.pubkey) - sgi.getFollowDistance(b.pubkey)),
     sortPubkeys: (events: Array<string>) => events.sort((a, b) => sgi.getFollowDistance(a) - sgi.getFollowDistance(b)),
-    followDistance: (pk: string) => sgi.getFollowDistance(pk),
+    followDistance: (pk: string) => {
+      const distance = sgi.getFollowDistance(pk);
+      // Debug logging to understand what's happening
+      if (distance !== Infinity) {
+        console.log("Follow distance for", pk, ":", distance);
+      }
+      return distance;
+    },
     followedByCount: (pk: string) => sgi.followedByFriendsCount(pk),
     followedBy: (pk: string) => sgi.followedByFriends(pk),
     instance: sgi,

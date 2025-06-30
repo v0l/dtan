@@ -16,17 +16,24 @@ export function useFollowListLoader() {
   const followEvents = useRequestBuilder(sub);
   
   useEffect(() => {
-    if (login?.publicKey && followEvents && followEvents.length > 0 && wot.instance) {
+    if (login?.publicKey && followEvents && followEvents.length > 0) {
       const latestFollowEvent = followEvents[followEvents.length - 1]; // Get the most recent
       console.log("Loading follow list for user:", login.publicKey, "with", latestFollowEvent.tags.length, "follows");
       
       // The social graph should automatically process these events since buildFollowGraph is true
-      // But we might need to explicitly tell it who the root user is
-      if (typeof wot.instance.setRoot === 'function') {
-        wot.instance.setRoot(login.publicKey);
+      // Log some debug info to see if the WoT is working
+      console.log("WoT instance available:", !!wot.instance);
+      
+      // Test follow distance calculation
+      if (latestFollowEvent.tags.length > 0) {
+        const firstFollow = latestFollowEvent.tags.find(tag => tag[0] === 'p')?.[1];
+        if (firstFollow) {
+          const distance = wot.followDistance(firstFollow);
+          console.log("Follow distance for first follow", firstFollow, ":", distance);
+        }
       }
     }
-  }, [login?.publicKey, followEvents, wot.instance]);
+  }, [login?.publicKey, followEvents, wot]);
   
   return followEvents;
 }

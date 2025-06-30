@@ -35,6 +35,37 @@ export function Layout() {
     updateRelayConnections(system, Object.fromEntries(relays.map((a) => [a, { read: true, write: true }])));
   }, [system, relays]);
 
+  // Configure the system with the current user when they log in
+  useEffect(() => {
+    if (login?.publicKey && system) {
+      console.log("Configuring system with user:", login.publicKey);
+      
+      // The social graph instance might need to know the current user
+      // Try to set the system's public key context
+      if (system.config && system.config.socialGraphInstance) {
+        console.log("Social graph instance available");
+        const sgi = system.config.socialGraphInstance as any;
+        
+        // Log available methods to understand the API
+        console.log("Social graph methods available:", Object.getOwnPropertyNames(Object.getPrototypeOf(sgi)));
+        
+        // Try some common method names
+        if (typeof sgi.setUser === 'function') {
+          sgi.setUser(login.publicKey);
+          console.log("Set social graph user:", login.publicKey);
+        } else if (typeof sgi.setRoot === 'function') {
+          sgi.setRoot(login.publicKey);  
+          console.log("Set social graph root:", login.publicKey);
+        } else if (typeof sgi.buildFromUser === 'function') {
+          sgi.buildFromUser(login.publicKey);
+          console.log("Building social graph from user:", login.publicKey);
+        } else {
+          console.log("No known user configuration method found");
+        }
+      }
+    }
+  }, [login?.publicKey, system]);
+
   return (
     <div className="container mx-auto">
       <FollowListLoader />
