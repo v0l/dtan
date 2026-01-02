@@ -105,16 +105,25 @@ export function NewPage() {
         console.debug("Truncated file list, too long!");
       }
 
+      // Handle single-file torrents (no info.files, just info.name and info.length)
+      const files = fileListFiltered
+        ? fileListFiltered.map((a) => ({
+            size: a.length,
+            name: a.path.map((b) => dec.decode(b)).join("/"),
+          }))
+        : [
+            {
+              size: info.length,
+              name: dec.decode(info.name),
+            },
+          ];
+
       setObj({
         name: dec.decode(info.name),
         desc: dec.decode(torrent["comment"] as Uint8Array | undefined) ?? "",
         btih: bytesToHex(sha1(infoBuf)),
         tcat: "",
-        files:
-          fileListFiltered?.map((a) => ({
-            size: a.length,
-            name: a.path.map((b) => dec.decode(b)).join("/"),
-          })) ?? [],
+        files: files,
         trackers: dedupe([annouce, ...(announceList ?? [])]),
         externalLabels: [],
       });
