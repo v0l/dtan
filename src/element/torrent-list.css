@@ -57,3 +57,79 @@
   width: 40px;
   text-align: center;
 }
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .torrent-list {
+    font-size: 13px;
+  }
+
+  /* Hide less important columns on mobile */
+  .torrent-list th:nth-child(3),
+  .torrent-list td:nth-child(3) {
+    /* IMDB icon - hide on mobile */
+    display: none;
+  }
+
+  .torrent-list th:nth-child(7),
+  .torrent-list td:nth-child(7) {
+    /* From/Profile - hide on mobile */
+    display: none;
+  }
+
+  /* Reduce fixed column widths on mobile */
+  .torrent-list th:nth-child(1),
+  .torrent-list td:nth-child(1) {
+    /* Category */
+    width: 120px;
+  }
+
+  .torrent-list th:nth-child(4),
+  .torrent-list td:nth-child(4) {
+    /* Uploaded date */
+    width: 70px;
+  }
+
+  .torrent-list th:nth-child(5),
+  .torrent-list td:nth-child(5) {
+    /* Magnet/POW */
+    width: 50px;
+  }
+
+  .torrent-list th:nth-child(6),
+  .torrent-list td:nth-child(6) {
+    /* Size */
+    width: 70px;
+  }
+
+  /* Name column gets more space on mobile */
+  .torrent-list th:nth-child(2),
+  .torrent-list td:nth-child(2) {
+    min-width: 0;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .torrent-list {
+    font-size: 12px;
+  }
+
+  .torrent-list th:nth-child(4),
+  .torrent-list td:nth-child(4) {
+    /* Uploaded date - hide on very small screens */
+    display: none;
+  }
+
+  .torrent-list th:nth-child(6),
+  .torrent-list td:nth-child(6) {
+    /* Size - reduce on small screens */
+    width: 50px;
+  }
+
+  .torrent-list th:nth-child(1),
+  .torrent-list td:nth-child(1) {
+    /* Category - reduce on small screens */
+    width: 90px;
+  }
+}
