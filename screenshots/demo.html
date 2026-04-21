@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mobile Layout Demo - DTAN</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #6366f1;
+    }
+    .resize-hint {
+      background: #2d2d2d;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .resize-hint strong {
+      color: #818cf8;
+    }
+    
+    .torrent-list {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    .torrent-list td,
+    .torrent-list th {
+      border-bottom: 1px solid #222;
+      padding: 0px 6px;
+    }
+
+    /* Category */
+    .torrent-list th:nth-child(1),
+    .torrent-list td:nth-child(1) {
+      width: 175px;
+    }
+
+    /* Name - flexes to fill remaining space */
+    .torrent-list th:nth-child(2),
+    .torrent-list td:nth-child(2) {
+      width: auto;
+      max-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* IMDB icon */
+    .torrent-list th:nth-child(3),
+    .torrent-list td:nth-child(3) {
+      width: 40px;
+    }
+
+    /* Uploaded date */
+    .torrent-list th:nth-child(4),
+    .torrent-list td:nth-child(4) {
+      width: 90px;
+    }
+
+    /* Magnet/POW */
+    .torrent-list th:nth-child(5),
+    .torrent-list td:nth-child(5) {
+      width: 70px;
+    }
+
+    /* Size */
+    .torrent-list th:nth-child(6),
+    .torrent-list td:nth-child(6) {
+      width: 90px;
+    }
+
+    /* From */
+    .torrent-list th:nth-child(7),
+    .torrent-list td:nth-child(7) {
+      width: 40px;
+      text-align: center;
+    }
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+      .torrent-list {
+        font-size: 13px;
+      }
+
+      /* Hide less important columns on mobile */
+      .torrent-list th:nth-child(3),
+      .torrent-list td:nth-child(3) {
+        /* IMDB icon - hide on mobile */
+        display: none;
+      }
+
+      .torrent-list th:nth-child(7),
+      .torrent-list td:nth-child(7) {
+        /* From/Profile - hide on mobile */
+        display: none;
+      }
+
+      /* Reduce fixed column widths on mobile */
+      .torrent-list th:nth-child(1),
+      .torrent-list td:nth-child(1) {
+        /* Category */
+        width: 120px;
+      }
+
+      .torrent-list th:nth-child(4),
+      .torrent-list td:nth-child(4) {
+        /* Uploaded date */
+        width: 70px;
+      }
+
+      .torrent-list th:nth-child(5),
+      .torrent-list td:nth-child(5) {
+        /* Magnet/POW */
+        width: 50px;
+      }
+
+      .torrent-list th:nth-child(6),
+      .torrent-list td:nth-child(6) {
+        /* Size */
+        width: 70px;
+      }
+
+      /* Name column gets more space on mobile */
+      .torrent-list th:nth-child(2),
+      .torrent-list td:nth-child(2) {
+        min-width: 0;
+      }
+    }
+
+    /* Small mobile devices */
+    @media (max-width: 480px) {
+      .torrent-list {
+        font-size: 12px;
+      }
+
+      .torrent-list th:nth-child(4),
+      .torrent-list td:nth-child(4) {
+        /* Uploaded date - hide on very small screens */
+        display: none;
+      }
+
+      .torrent-list th:nth-child(6),
+      .torrent-list td:nth-child(6) {
+        /* Size - reduce on small screens */
+        width: 50px;
+      }
+
+      .torrent-list th:nth-child(1),
+      .torrent-list td:nth-child(1) {
+        /* Category - reduce on small screens */
+        width: 90px;
+      }
+    }
+
+    .torrent-list th {
+      text-align: left;
+      padding: 8px 6px;
+      color: #9ca3af;
+      font-weight: normal;
+    }
+
+    .torrent-list td {
+      padding: 10px 6px;
+    }
+
+    .torrent-list tr:hover {
+      background: #1e1e4d;
+    }
+
+    .torrent-list a {
+      color: #818cf8;
+      text-decoration: none;
+    }
+
+    .torrent-list a:hover {
+      text-decoration: underline;
+    }
+
+    .category-link {
+      color: #818cf8;
+      text-decoration: none;
+    }
+
+    .magnet-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .profile-img {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+    }
+
+    .pow-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mobile Layout Demo - Torrent List</h1>
+  <div class="resize-hint">
+    <strong>Resize your browser window</strong> to see the responsive behavior:
+    <ul style="margin-top: 8px; margin-left: 20px;">
+      <li><strong>&gt;768px (Desktop):</strong> All columns visible</li>
+      <li><strong>&lt;768px (Tablet/Large Mobile):</strong> IMDB and Profile columns hidden</li>
+      <li><strong>&lt;480px (Small Mobile):</strong> Uploaded date also hidden</li>
+    </ul>
+  </div>
+
+  <table class="torrent-list">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Name</th>
+        <th></th>
+        <th>Uploaded</th>
+        <th></th>
+        <th>Size</th>
+        <th>From</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a href="#" class="category-link">Movies > HD > 1080p</a></td>
+        <td><a href="#">The.Matrix.Resurrections.2021.1080p.BluRay.x264-SPARKS</a></td>
+        <td>🎬</td>
+        <td>Jan 15</td>
+        <td>⚡ 3</td>
+        <td>8.2 GB</td>
+        <td><img src="https://ui-avatars.com/api/?name=A&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+      <tr>
+        <td><a href="#" class="category-link">TV Shows > HD > 720p</a></td>
+        <td><a href="#">Breaking.Bad.S01-S05.COMPLETE.720p.BluRay.x264-MERGED</a></td>
+        <td>🎬</td>
+        <td>Jan 14</td>
+        <td>⚡ 5</td>
+        <td>45.2 GB</td>
+        <td><img src="https://ui-avatars.com/api/?name=B&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+      <tr>
+        <td><a href="#" class="category-link">Games > PC > ISO</a></td>
+        <td><a href="#">Red.Dead.Redemption.2.CRUNCH</a></td>
+        <td>🎮</td>
+        <td>Jan 13</td>
+        <td>⚡ 2</td>
+        <td>98.5 GB</td>
+        <td><img src="https://ui-avatars.com/api/?name=C&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+      <tr>
+        <td><a href="#" class="category-link">Music > FLAC</a></td>
+        <td><a href="#">Pink.Floyd.The.Dark.Side.of.the.Moon.1973.FLAC</a></td>
+        <td>🎵</td>
+        <td>Jan 12</td>
+        <td>⚡ 1</td>
+        <td>425 MB</td>
+        <td><img src="https://ui-avatars.com/api/?name=D&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+      <tr>
+        <td><a href="#" class="category-link">Movies > UHD > 4K</a></td>
+        <td><a href="#">Dune.Part.Two.2024.2160p.UHD.BluRay.x265-TERMINAL</a></td>
+        <td>🎬</td>
+        <td>Jan 11</td>
+        <td>⚡ 8</td>
+        <td>65.8 GB</td>
+        <td><img src="https://ui-avatars.com/api/?name=E&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+      <tr>
+        <td><a href="#" class="category-link">TV Shows > HD > 1080p</a></td>
+        <td><a href="#">The.Office.US.COMPLETE.S1-S9.1080p.AMZN.WEB-DL</a></td>
+        <td>🎬</td>
+        <td>Jan 10</td>
+        <td>⚡ 12</td>
+        <td>156 GB</td>
+        <td><img src="https://ui-avatars.com/api/?name=F&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+      <tr>
+        <td><a href="#" class="category-link">Software > Windows</a></td>
+        <td><a href="#">Adobe.Creative.Cloud.2024.FULL.SUITE-WIN</a></td>
+        <td>💻</td>
+        <td>Jan 09</td>
+        <td>⚡ 4</td>
+        <td>22.1 GB</td>
+        <td><img src="https://ui-avatars.com/api/?name=G&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+      <tr>
+        <td><a href="#" class="category-link">Documentary > HD</a></td>
+        <td><a href="#">Our.Planet.II.2023.COMPLETE.2160p.NF.WEB-DL</a></td>
+        <td>🎬</td>
+        <td>Jan 08</td>
+        <td>⚡ 6</td>
+        <td>38.4 GB</td>
+        <td><img src="https://ui-avatars.com/api/?name=H&background=6366f1&color=fff" class="profile-img"></td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>
