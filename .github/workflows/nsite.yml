@@ -24,4 +24,4 @@ jobs:
         run: cp dist/client/index.html dist/client/404.html
 
       - name: Deploy nsite
-        run: npx -y nsite-cli upload dist/client --verbose --purge --privatekey ${{ secrets.NSITE_KEY }} --servers 'https://nostr.download,https://blossom.band'
+        run: bunx --bun nsite-cli upload dist/client --verbose --purge --privatekey ${{ secrets.NSITE_KEY }} --servers 'https://nostr.download,https://blossom.band'
