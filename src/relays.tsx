@@ -3,26 +3,25 @@ import { useSyncExternalStore } from "react";
 
 const storageKey = "relays";
 class RelaysStore extends ExternalStore<Array<string>> {
-  #relays: Array<string> = [];
+  #relays: Array<string> = [
+    "wss://nos.lol/",
+    "wss://relay.damus.io/",
+    "wss://relay.primal.net/",
+    "wss://relay.snort.social/",
+  ];
 
   constructor() {
     super();
-    const loaded = localStorage.getItem(storageKey);
-    if (loaded) {
-      this.#relays = JSON.parse(loaded);
-    } else {
-      if (import.meta.env.VITE_DTAN_SERVER) {
-        this.#relays = [`${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`];
+    if (typeof window !== "undefined") {
+      const loaded = localStorage.getItem(storageKey);
+      if (loaded) {
+        this.#relays = JSON.parse(loaded);
       } else {
-        this.#relays = [
-          "wss://nos.lol/",
-          "wss://relay.damus.io/",
-          "wss://relay.nostr.band/",
-          "wss://relay.primal.net/",
-          "wss://relay.snort.social/",
-        ];
+        if (import.meta.env.VITE_DTAN_SERVER) {
+          this.#relays = [`${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`];
+        }
+        this.#save();
       }
-      this.#save();
     }
   }
 
@@ -58,6 +57,7 @@ export function useRelays() {
   const relays = useSyncExternalStore(
     (s) => relayStore.hook(s),
     () => relayStore.snapshot(),
+    () => [],
   );
 
   return {

@@ -1,26 +1,21 @@
-import "./index.css";
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { RouteObject, RouterProvider, createBrowserRouter } from "react-router-dom";
-
-import { SnortContext } from "@snort/system-react";
-
+import { RouteObject } from "react-router-dom";
 import { Layout } from "./page/layout";
 import { HomePage } from "./page/home";
 import { ProfilePage } from "./page/profile";
 import { NewPage } from "./page/new";
 import { TorrentPage } from "./page/torrent";
 import { SearchPage } from "./page/search";
-import { System, initSystem } from "./system";
 import { RelaysPage } from "./page/relays";
 import LoginPage from "./page/login";
 import { CategoriesPage } from "./page/categories";
 
-const routes = [
+export const routes = [
   {
     element: <Layout />,
     loader: async () => {
-      await initSystem();
+      if (!import.meta.env.SSR) {
+        await (await import("./system")).initSystem();
+      }
       return null;
     },
     children: [
@@ -59,12 +54,3 @@ const routes = [
     ],
   },
 ] as Array<RouteObject>;
-
-const router = createBrowserRouter(routes);
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <SnortContext.Provider value={System}>
-      <RouterProvider router={router} />
-    </SnortContext.Provider>
-  </React.StrictMode>,
-);

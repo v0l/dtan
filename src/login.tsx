@@ -15,16 +15,18 @@ class LoginStore extends ExternalStore<LoginSession | undefined> {
 
   constructor() {
     super();
-    const s = window.localStorage.getItem("session");
-    if (s) {
-      this.#session = JSON.parse(s);
-      // patch session
-      if (this.#session) {
-        this.#session.type ??= "nip7";
-      }
-      if (this.#session !== undefined && this.#session.publicKey === undefined) {
-        console.warn("Invalid login session, missing pubkey");
-        this.#session = undefined;
+    if (typeof window !== "undefined") {
+      const s = window.localStorage.getItem("session");
+      if (s) {
+        this.#session = JSON.parse(s);
+        // patch session
+        if (this.#session) {
+          this.#session.type ??= "nip7";
+        }
+        if (this.#session !== undefined && this.#session.publicKey === undefined) {
+          console.warn("Invalid login session, missing pubkey");
+          this.#session = undefined;
+        }
       }
     }
   }
@@ -107,6 +109,7 @@ export function useLogin() {
   const session = useSyncExternalStore(
     (c) => LoginState.hook(c),
     () => LoginState.snapshot(),
+    () => undefined,
   );
   const system = useContext(SnortContext);
   useEffect(() => {

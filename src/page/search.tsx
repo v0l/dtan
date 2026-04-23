@@ -15,7 +15,7 @@ export function SearchPage() {
     const rb = new RequestBuilder(`search:${q}+${term}`);
     const f = rb
       .withFilter()
-      .relay(["wss://relay.nostr.band", "wss://relay.noswhere.com", ...relays])
+      .relay(["wss://relay.noswhere.com", ...relays])
       .kinds([TorrentKind]);
     if (term || tags.length > 0 || labels.length > 0) {
       f.limit(100);

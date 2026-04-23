@@ -15,7 +15,7 @@ export function ProfileImage({ pubkey, size, withName, children, ...props }: Pro
   const url =
     (profile?.picture?.length ?? 0) > 0
       ? profile?.picture
-      : `https://nostr.api.v0l.io/api/v1/avatar/cyberpunks/${pubkey}`;
+      : `https://nostr-rs-api.v0l.io/avatar/cyberpunks/${pubkey}`;
 
   const v = {
     backgroundImage: `url(${url})`,
