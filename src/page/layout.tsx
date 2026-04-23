@@ -9,13 +9,16 @@ import { SnortContext } from "@snort/system-react";
 import { NostrLink, RelaySettings, SystemInterface } from "@snort/system";
 import { useFollowList } from "../follows";
 import GithubIcon from "../element/icon/github";
+import { IsSSR } from "../const";
 
 export function Layout() {
   const login = useLogin();
   const system = useContext(SnortContext);
   const { relays } = useRelays();
   const navigate = useNavigate();
-  useFollowList();
+  if (!IsSSR) {
+    useFollowList();
+  }
 
   async function updateRelayConnections(system: SystemInterface, relays: Record<string, RelaySettings>) {
     if (import.meta.env.VITE_SINGLE_RELAY) {

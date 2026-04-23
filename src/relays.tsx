@@ -1,14 +1,10 @@
 import { ExternalStore, appendDedupe, sanitizeRelayUrl } from "@snort/shared";
 import { useSyncExternalStore } from "react";
+import { DefaultRelays } from "./const";
 
 const storageKey = "relays";
 class RelaysStore extends ExternalStore<Array<string>> {
-  #relays: Array<string> = [
-    "wss://nos.lol/",
-    "wss://relay.damus.io/",
-    "wss://relay.primal.net/",
-    "wss://relay.snort.social/",
-  ];
+  #relays: Array<string> = DefaultRelays;
 
   constructor() {
     super();

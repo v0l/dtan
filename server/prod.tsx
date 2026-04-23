@@ -1,20 +1,22 @@
 /**
  * Production server — Bun.serve with static file serving + SSR.
  */
+import.meta.env.SSR = true;
 import { renderPage } from "./ssr-render";
 import path from "path";
 
-const port = Number(process.env.PORT) || 0;
+const port = Number(process.env.PORT) || 4433;
 const distPath = path.resolve(import.meta.dir, "../dist/client");
 const templateHtml = await Bun.file(path.join(distPath, "index.html")).text();
 
 const server = Bun.serve({
   port,
+  idleTimeout: 30,
   async fetch(req: Request) {
     const url = new URL(req.url);
     const pathname = url.pathname;
 
-    const staticFilePath = path.join(distPath, pathname);
+    const staticFilePath = path.join(distPath, pathname.split("?")[0]);
     const staticFile = Bun.file(staticFilePath);
     if (pathname !== "/" && (await staticFile.exists())) {
       return new Response(staticFile, {
@@ -43,3 +45,10 @@ const server = Bun.serve({
 });
 
 console.log(`Server running at http://localhost:${server.port}`);
+
+function shutdown() {
+  server.stop(true);
+  process.exit(0);
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

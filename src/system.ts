@@ -1,4 +1,5 @@
 import { NostrSystem } from "@snort/system";
+import { IsSSR } from "./const";
 
 const hasWasm = import.meta.env.VITE_DISABLE_WASM ? false : "WebAssembly" in globalThis;
 
@@ -11,12 +12,11 @@ export async function initSystem() {
   if (didInit) return;
   didInit = true;
 
-  if (hasWasm && !import.meta.env.SSR) {
+  if (hasWasm && !IsSSR) {
     const { initWasm, WasmOptimizer, workerRelay } = await import("./wasm");
     await initWasm();
     System.config.optimizer = WasmOptimizer;
     System.config.cachingRelay = workerRelay;
-    console.log("LOADING WASM", WasmOptimizer, workerRelay)
   }
 
   await System.Init();

@@ -8,14 +8,13 @@ import { SearchPage } from "./page/search";
 import { RelaysPage } from "./page/relays";
 import LoginPage from "./page/login";
 import { CategoriesPage } from "./page/categories";
+import { initSystem } from "./system";
 
 export const routes = [
   {
     element: <Layout />,
     loader: async () => {
-      if (!import.meta.env.SSR) {
-        await (await import("./system")).initSystem();
-      }
+      await initSystem();
       return null;
     },
     children: [

@@ -269,3 +269,16 @@ export const Trackers = [
   "udp://tracker.torrent.eu.org:451/announce",
   "udp://tracker.opentrackr.org:1337",
 ];
+
+export const DefaultRelays = [
+  "wss://nos.lol/",
+  "wss://relay.damus.io/",
+  "wss://relay.primal.net/",
+  "wss://relay.snort.social/",
+  "wss://relay.dtan.xyz"
+]
+
+/**
+ * Was the source build for the server
+ */
+export const IsSSR = typeof import.meta.env.SSR === "boolean" ? import.meta.env.SSR : typeof window === "undefined";

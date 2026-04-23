@@ -4,6 +4,9 @@ import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import { SnortContext } from "@snort/system-react";
 import { routes } from "./main";
 import { System } from "./system";
+import { hydrateSnort } from "./ssr-hydration";
+
+hydrateSnort(System);
 
 const router = createBrowserRouter(routes);
 

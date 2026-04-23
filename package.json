@@ -6,19 +6,19 @@
   "scripts": {
     "dev": "bun server/dev.tsx",
     "build": "bun run build:client && bun run build:server",
-    "build:client": "bunx vite build --outDir dist/client",
-    "build:server": "bunx vite build --ssr src/main.tsx --outDir dist/server",
+    "build:client": "bunx --bun vite build --outDir dist/client",
+    "build:server": "bunx --bun vite build --ssr src/main.tsx --outDir dist/server",
     "serve": "bun run build && bun server/prod.tsx",
     "preview": "bunx vite preview",
     "deploy": "yarn build && yarn dlx wrangler pages deploy dist"
   },
   "dependencies": {
     "@noble/hashes": "^2.2.0",
-    "@snort/shared": "^2.0.0-pre.4",
-    "@snort/system": "2.0.0-pre.12",
-    "@snort/system-react": "2.0.0-pre.16",
-    "@snort/system-wasm": "^1.0.7",
-    "@snort/worker-relay": "^2.0.0-pre.3",
+    "@snort/shared": "^2.0.0",
+    "@snort/system": "^2.0.1",
+    "@snort/system-react": "^2.0.1",
+    "@snort/system-wasm": "^2.0.0",
+    "@snort/worker-relay": "^2.0.0",
     "classnames": "^2.5.1",
     "marked": "^18.0.2",
     "marked-footnote": "^1.4.0",
@@ -48,7 +48,6 @@
     "vite": "^8.0.10",
     "vite-plugin-pwa": "^1.2.0"
   },
-  "packageManager": "yarn@4.9.2",
   "prettier": {
     "printWidth": 120
   }
