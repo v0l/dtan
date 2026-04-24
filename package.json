@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun server/dev.tsx",
-    "build": "bun run build:client && bun run build:server",
+    "build": "rm -rf dist && bun run build:client && bun run build:server",
     "build:client": "bunx --bun vite build --outDir dist/client",
     "build:server": "bunx --bun vite build --ssr src/main.tsx --outDir dist/server",
     "serve": "bun run build && bun server/prod.tsx",
