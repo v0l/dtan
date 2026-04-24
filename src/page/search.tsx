@@ -4,11 +4,13 @@ import { TorrentKind } from "../const";
 import { TorrentList } from "../element/torrent-list";
 import { useRelays } from "../relays";
 import { useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import useSearch from "../hooks/search";
 
 export function SearchPage() {
   const { term, tags, labels } = useSearch();
   const { relays } = useRelays();
+  const location = useLocation();
 
   const rb = useMemo(() => {
     const q = location.search;

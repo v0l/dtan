@@ -7,8 +7,8 @@
       "dependencies": {
         "@noble/hashes": "^2.2.0",
         "@snort/shared": "^2.0.0",
-        "@snort/system": "^2.0.0",
-        "@snort/system-react": "^2.0.0",
+        "@snort/system": "^2.1.0",
+        "@snort/system-react": "^2.1.0",
         "@snort/system-wasm": "^2.0.0",
         "@snort/worker-relay": "^2.0.0",
         "classnames": "^2.5.1",
@@ -327,9 +327,9 @@
 
     "@snort/shared": ["@snort/shared@2.0.0", "", { "dependencies": { "@noble/curves": "^2.0.1", "@noble/hashes": "^2.0.1", "@scure/base": "^2.0.0", "debug": "^4.4.3", "eventemitter3": "^5.0.1", "light-bolt11-decoder": "^3.2.0", "uuid": "^13.0.0" } }, "sha512-d974fEsm8DTXLAt3AqFvWGfpyeMWWigXt/qO2HwtX3ZR7QUpCH1nOJw+7LxhtmSAwpvU1V1c7svaax74Q6GjtA=="],
 
-    "@snort/system": ["@snort/system@2.0.1", "", { "dependencies": { "@noble/ciphers": "^2.0.1", "@noble/curves": "^2.0.1", "@noble/hashes": "^2.0.1", "@scure/base": "^2.0.0", "@snort/shared": "^2.0.0", "debug": "^4.4.3", "eventemitter3": "^5.0.1", "isomorphic-ws": "^5.0.0", "nostr-social-graph": "^1.0.33", "typescript-lru-cache": "^2.0.0", "ws": "^8.18.3" } }, "sha512-OtOHf+y5j9oG68ymAJHRpD0Fx6kmyishW1mcvQwUZ7YTDN4QpTDlFuBGNvwDcL+YDuC5I7KJMzLQViVULCBrcA=="],
+    "@snort/system": ["@snort/system@2.1.0", "", { "dependencies": { "@noble/ciphers": "^2.0.1", "@noble/curves": "^2.0.1", "@noble/hashes": "^2.0.1", "@scure/base": "^2.0.0", "@snort/shared": "^2.0.0", "debug": "^4.4.3", "eventemitter3": "^5.0.1", "isomorphic-ws": "^5.0.0", "nostr-social-graph": "^1.0.33", "typescript-lru-cache": "^2.0.0", "ws": "^8.18.3" } }, "sha512-ZteWtx9QAjreh7aDWummYGuMIWtVe4E+S/Fol1icSpxs6ETAi/sjWTsoYBrCwcXFYQz69faeTdWFspMPk7U9qA=="],
 
-    "@snort/system-react": ["@snort/system-react@2.0.1", "", { "dependencies": { "@snort/shared": "^2.0.0", "@snort/system": "^2.0.1" }, "peerDependencies": { "react": "^19.2.3", "react-dom": "^19.2.5" } }, "sha512-pLd7lyIqkYmFDQVoPrjsgZR1H07k8yle8qaJRPGi90HZZd6WOKM3INcuS9MoVrh98PcDU5BTAqKVdxe2Ci9uzw=="],
+    "@snort/system-react": ["@snort/system-react@2.1.0", "", { "dependencies": { "@snort/shared": "^2.0.0", "@snort/system": "^2.1.0" }, "peerDependencies": { "react": "^19.2.3", "react-dom": "^19.2.5" } }, "sha512-lQBXf8+Jq9BlXR5BR0Y1PfM91XA71sM//0BMpMGOHhlQF18fsBy4o6PG1x4ubNCL6/SXGIQbNiVg13J6A0LS0w=="],
 
     "@snort/system-wasm": ["@snort/system-wasm@2.0.0", "", {}, "sha512-70lg/pSkhQyBCluskA+Va5VY2Qcdpcm8AmAdYrgDuMPLdmHBTLQr8/s/AVeDNnQOnbPMzieN7mWjqbQnnG+hGQ=="],
 
