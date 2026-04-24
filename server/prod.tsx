@@ -9,6 +9,11 @@ const port = Number(process.env.PORT) || 4433;
 const distPath = path.resolve(import.meta.dir, "../dist/client");
 const templateHtml = await Bun.file(path.join(distPath, "index.html")).text();
 
+function acceptsGzip(req: Request): boolean {
+  const accept = req.headers.get("accept-encoding") ?? "";
+  return accept.includes("gzip");
+}
+
 const server = Bun.serve({
   port,
   idleTimeout: 30,
@@ -33,6 +38,19 @@ const server = Bun.serve({
         req.headers.get("accept-language"),
         req.headers.get("cookie"),
       );
+
+      const useGzip = acceptsGzip(req);
+      if (useGzip) {
+        const compressed = Bun.gzipSync(result.html);
+        return new Response(compressed, {
+          status: result.status,
+          headers: {
+            "Content-Type": "text/html",
+            "Content-Encoding": "gzip",
+          },
+        });
+      }
+
       return new Response(result.html, {
         status: result.status,
         headers: { "Content-Type": "text/html" },
