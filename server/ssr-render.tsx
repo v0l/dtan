@@ -43,20 +43,38 @@ export async function renderPage(
 
   const router = createStaticRouter(handler.dataRoutes, context);
 
-  const html = renderToString(
+  const app = (
     <SnortContext.Provider value={system}>
       <StaticRouterProvider router={router} context={context} />
-    </SnortContext.Provider>,
+    </SnortContext.Provider>
   );
 
-  // Start queries registered during render so data loads in the background
-  // for future requests. (useRequestBuilder only calls q.start() in the
-  // subscribe callback, which React skips during SSR)
-  for (const q of system.takeSnapshot().queries) {
+  // First render: discovers queries via useRequestBuilder → system.Query(rb),
+  // but React never calls subscribe during SSR so q.start() is never invoked.
+  renderToString(app);
+
+  // Collect query ids discovered during the render pass so we can cancel them after.
+  // This must happen after renderToString so we capture all registered queries.
+  const queryIds = system.takeSnapshot().queries.map((q) => q.id);
+
+  // Start all queries discovered during the first render, then wait for data.
+  for (const q of queryIds) {
     system.GetQuery(q.id)?.start();
   }
+  await system.FetchAll();
+
+  // Second render: queries now have data in their snapshots.
+  const html = renderToString(app);
 
   const hydrationScript = getHydrationScript(system);
+
+  // Cancel queries from this request so stale data doesn't leak into the next.
+  // The QueryManager deduplicates by id, so without this a subsequent SSR
+  // request for a different page would get back the old Query with old data.
+  for (const id of queryIds) {
+    system.GetQuery(id)?.cancel();
+  }
+
   const resultHtml = template.replace('<!--app-html-->', html).replace('</head>', `${hydrationScript}</head>`);
 
   return { html: resultHtml, status: 200 };
