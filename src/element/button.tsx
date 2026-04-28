@@ -7,7 +7,7 @@ type ButtonProps = Omit<HTMLProps<HTMLButtonElement>, "onClick" | "small"> & {
   small?: boolean;
 };
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>((props, ref) => {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({ small, ...props }, ref) => {
   const [spinning, setSpinning] = useState(false);
 
   async function clicking(e: React.MouseEvent<HTMLButtonElement>) {
@@ -47,7 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>((props, ref) =>
       {...props}
       type="button"
       className={classNames(
-        props.small ? "px-3 py-1 rounded-2xl" : "px-4 py-3 rounded-xl ",
+        small ? "px-3 py-1 rounded-2xl" : "px-4 py-3 rounded-xl ",
         "flex gap-1 items-center justify-center  whitespace-nowrap cursor-pointer",
         colorScheme,
         props.className,
