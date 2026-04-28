@@ -43,19 +43,18 @@ export async function renderPage(
 
   const router = createStaticRouter(handler.dataRoutes, context);
 
-  renderToString(
-    <SnortContext.Provider value={system}>
-      <StaticRouterProvider router={router} context={context} />
-    </SnortContext.Provider>,
-  );
-
-  await system.FetchAll();
-  
   const html = renderToString(
     <SnortContext.Provider value={system}>
       <StaticRouterProvider router={router} context={context} />
     </SnortContext.Provider>,
   );
+
+  // Start queries registered during render so data loads in the background
+  // for future requests. (useRequestBuilder only calls q.start() in the
+  // subscribe callback, which React skips during SSR)
+  for (const q of system.takeSnapshot().queries) {
+    system.GetQuery(q.id)?.start();
+  }
 
   const hydrationScript = getHydrationScript(system);
   const resultHtml = template.replace('<!--app-html-->', html).replace('</head>', `${hydrationScript}</head>`);
