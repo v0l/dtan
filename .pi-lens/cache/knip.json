@@ -1,0 +1,243 @@
+{
+  "success": true,
+  "issues": [
+    {
+      "type": "file",
+      "name": "src/element/trending.tsx",
+      "file": "src/element/trending.tsx"
+    },
+    {
+      "type": "file",
+      "name": "public/fonts/outfit/outfit.css",
+      "file": "public/fonts/outfit/outfit.css"
+    },
+    {
+      "type": "file",
+      "name": "src/element/icon/file-icon.tsx",
+      "file": "src/element/icon/file-icon.tsx"
+    },
+    {
+      "type": "file",
+      "name": "src/element/icon/folder.tsx",
+      "file": "src/element/icon/folder.tsx"
+    },
+    {
+      "type": "file",
+      "name": "src/element/icon/link.tsx",
+      "file": "src/element/icon/link.tsx"
+    },
+    {
+      "type": "devDependency",
+      "name": "@nsyte/cli",
+      "file": "package.json",
+      "line": 31
+    },
+    {
+      "type": "devDependency",
+      "name": "prettier",
+      "file": "package.json",
+      "line": 46
+    },
+    {
+      "type": "export",
+      "name": "ProfileSection",
+      "file": "src/page/profile.tsx",
+      "line": 25
+    },
+    {
+      "type": "export",
+      "name": "TorrentDetail",
+      "file": "src/page/torrent.tsx",
+      "line": 40
+    },
+    {
+      "type": "export",
+      "name": "kiB",
+      "file": "src/const.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "MiB",
+      "file": "src/const.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "GiB",
+      "file": "src/const.ts",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "TiB",
+      "file": "src/const.ts",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "PiB",
+      "file": "src/const.ts",
+      "line": 22
+    },
+    {
+      "type": "export",
+      "name": "EiB",
+      "file": "src/const.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "ZiB",
+      "file": "src/const.ts",
+      "line": 30
+    },
+    {
+      "type": "export",
+      "name": "YiB",
+      "file": "src/const.ts",
+      "line": 34
+    },
+    {
+      "type": "export",
+      "name": "formatSatsCompact",
+      "file": "src/const.ts",
+      "line": 260
+    },
+    {
+      "type": "export",
+      "name": "default",
+      "file": "src/bencode/decode.ts",
+      "line": 158
+    },
+    {
+      "type": "export",
+      "name": "LoginSession",
+      "file": "src/login.tsx",
+      "line": 6
+    }
+  ],
+  "unusedExports": [
+    {
+      "type": "export",
+      "name": "ProfileSection",
+      "file": "src/page/profile.tsx",
+      "line": 25
+    },
+    {
+      "type": "export",
+      "name": "TorrentDetail",
+      "file": "src/page/torrent.tsx",
+      "line": 40
+    },
+    {
+      "type": "export",
+      "name": "kiB",
+      "file": "src/const.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "MiB",
+      "file": "src/const.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "GiB",
+      "file": "src/const.ts",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "TiB",
+      "file": "src/const.ts",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "PiB",
+      "file": "src/const.ts",
+      "line": 22
+    },
+    {
+      "type": "export",
+      "name": "EiB",
+      "file": "src/const.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "ZiB",
+      "file": "src/const.ts",
+      "line": 30
+    },
+    {
+      "type": "export",
+      "name": "YiB",
+      "file": "src/const.ts",
+      "line": 34
+    },
+    {
+      "type": "export",
+      "name": "formatSatsCompact",
+      "file": "src/const.ts",
+      "line": 260
+    },
+    {
+      "type": "export",
+      "name": "default",
+      "file": "src/bencode/decode.ts",
+      "line": 158
+    },
+    {
+      "type": "export",
+      "name": "LoginSession",
+      "file": "src/login.tsx",
+      "line": 6
+    }
+  ],
+  "unusedFiles": [
+    {
+      "type": "file",
+      "name": "src/element/trending.tsx",
+      "file": "src/element/trending.tsx"
+    },
+    {
+      "type": "file",
+      "name": "public/fonts/outfit/outfit.css",
+      "file": "public/fonts/outfit/outfit.css"
+    },
+    {
+      "type": "file",
+      "name": "src/element/icon/file-icon.tsx",
+      "file": "src/element/icon/file-icon.tsx"
+    },
+    {
+      "type": "file",
+      "name": "src/element/icon/folder.tsx",
+      "file": "src/element/icon/folder.tsx"
+    },
+    {
+      "type": "file",
+      "name": "src/element/icon/link.tsx",
+      "file": "src/element/icon/link.tsx"
+    }
+  ],
+  "unusedDeps": [
+    {
+      "type": "devDependency",
+      "name": "@nsyte/cli",
+      "file": "package.json",
+      "line": 31
+    },
+    {
+      "type": "devDependency",
+      "name": "prettier",
+      "file": "package.json",
+      "line": 46
+    }
+  ],
+  "unlistedDeps": [],
+  "summary": "Found 20 issues"
+}

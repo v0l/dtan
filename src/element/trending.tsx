@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import { TorrentTag } from "../nostr-torrent";
 import { EventKind, Nip10, RequestBuilder } from "@snort/system";
-import { TorrentCommentKind, TorrentKind } from "../const";
+import { SSRKeepAlive, TorrentCommentKind, TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { dedupe, removeUndefined } from "@snort/shared";
 import { TorrentList } from "./torrent-list";
 
 export default function TrendingTorrents({ tag }: { tag: TorrentTag }) {
   const rbReactions = useMemo(() => {
-    const rb = new RequestBuilder(`trending:${tag.type}:${tag.value}`);
+    const rb = new RequestBuilder(`trending:${tag.type}:${tag.value}`).withOptions({ keepAlive: SSRKeepAlive });
     rb.withFilter()
       .kinds([TorrentCommentKind, EventKind.ZapReceipt, EventKind.Reaction, EventKind.Repost])
       .tag("K", [TorrentKind.toString()]);
@@ -27,7 +27,7 @@ export default function TrendingTorrents({ tag }: { tag: TorrentTag }) {
     };
   });
   const rbTorrents = useMemo(() => {
-    const rb = new RequestBuilder(`trending:${tag.type}:${tag.value}:data`);
+    const rb = new RequestBuilder(`trending:${tag.type}:${tag.value}:data`).withOptions({ keepAlive: SSRKeepAlive });
     eventIds.sort((a, b) => (b.reactions > a.reactions ? 1 : -1));
     const fx = rb
       .withFilter()

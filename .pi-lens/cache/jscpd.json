@@ -1,0 +1,64 @@
+{
+  "success": true,
+  "clones": [
+    {
+      "fileA": "public/fonts/outfit/outfit.css",
+      "startA": 29,
+      "fileB": "public/fonts/outfit/outfit.css",
+      "startB": 7,
+      "lines": 10,
+      "tokens": 0
+    },
+    {
+      "fileA": "public/fonts/outfit/outfit.css",
+      "startA": 40,
+      "fileB": "public/fonts/outfit/outfit.css",
+      "startB": 18,
+      "lines": 10,
+      "tokens": 0
+    },
+    {
+      "fileA": "public/fonts/outfit/outfit.css",
+      "startA": 51,
+      "fileB": "public/fonts/outfit/outfit.css",
+      "startB": 7,
+      "lines": 10,
+      "tokens": 0
+    },
+    {
+      "fileA": "public/fonts/outfit/outfit.css",
+      "startA": 62,
+      "fileB": "public/fonts/outfit/outfit.css",
+      "startB": 18,
+      "lines": 10,
+      "tokens": 0
+    },
+    {
+      "fileA": "public/fonts/outfit/outfit.css",
+      "startA": 73,
+      "fileB": "public/fonts/outfit/outfit.css",
+      "startB": 7,
+      "lines": 10,
+      "tokens": 0
+    },
+    {
+      "fileA": "src/page/categories.tsx",
+      "startA": 84,
+      "fileB": "src/page/categories.tsx",
+      "startB": 51,
+      "lines": 31,
+      "tokens": 0
+    },
+    {
+      "fileA": "src/const.ts",
+      "startA": 163,
+      "fileB": "src/const.ts",
+      "startB": 45,
+      "lines": 22,
+      "tokens": 0
+    }
+  ],
+  "duplicatedLines": 96,
+  "totalLines": 5662,
+  "percentage": 1.7
+}

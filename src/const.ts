@@ -275,10 +275,18 @@ export const DefaultRelays = [
   "wss://relay.damus.io/",
   "wss://relay.primal.net/",
   "wss://relay.snort.social/",
-  "wss://relay.dtan.xyz"
-]
+  "wss://relay.dtan.xyz",
+];
 
 /**
  * Was the source build for the server
  */
 export const IsSSR = typeof import.meta.env.SSR === "boolean" ? import.meta.env.SSR : typeof window === "undefined";
+
+/**
+ * How long (ms) to keep queries alive on the server after the last subscriber disconnects.
+ * On the client this is 0 (queries use the default 1s cleanup).
+ * On the server, 30s means repeated requests for the same page/query reuse cached data —
+ * FetchAll resolves instantly for queries that already have finished traces.
+ */
+export const SSRKeepAlive = IsSSR ? 30_000 : 0;

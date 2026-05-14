@@ -1,6 +1,6 @@
 import { RequestBuilder } from "@snort/system";
 import { useRequestBuilder } from "@snort/system-react";
-import { TorrentKind } from "../const";
+import { SSRKeepAlive, TorrentKind } from "../const";
 import { TorrentList } from "../element/torrent-list";
 import { useRelays } from "../relays";
 import { useMemo } from "react";
@@ -14,7 +14,7 @@ export function SearchPage() {
 
   const rb = useMemo(() => {
     const q = location.search;
-    const rb = new RequestBuilder(`search:${q}+${term}`);
+    const rb = new RequestBuilder(`search:${q}+${term}`).withOptions({ keepAlive: SSRKeepAlive });
     const f = rb
       .withFilter()
       .relay(["wss://relay.noswhere.com", ...relays])

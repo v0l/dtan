@@ -6,7 +6,7 @@ import { ProfileImage } from "./profile-image";
 import { Button } from "./button";
 import { useLogin } from "../login";
 import { Text } from "./text";
-import { TorrentCommentKind, ZapKind, formatSats } from "../const";
+import { SSRKeepAlive, TorrentCommentKind, ZapKind, formatSats } from "../const";
 
 // Types for combined interactions
 type CommentInteraction = TaggedNostrEvent & { type: "comment" };
@@ -17,7 +17,7 @@ export function Comments({ ev }: { ev: TaggedNostrEvent }) {
   const link = NostrLink.fromEvent(ev);
 
   // Fetch both comments and zaps in a single filter
-  const rb = new RequestBuilder(`interactions:${link.encode()}`);
+  const rb = new RequestBuilder(`interactions:${link.encode()}`).withOptions({ keepAlive: SSRKeepAlive });
   rb.withFilter().kinds([TorrentCommentKind, ZapKind]).replyToLink([link]);
   const interactions = useRequestBuilder(rb);
 

@@ -1,11 +1,11 @@
-name: Deploy nsite
+name: Deploy nsyte
 on:
   push:
     branches:
       - main
 
 concurrency:
-  group: nsite-deploy
+  group: nsyte-deploy
   cancel-in-progress: true
 
 jobs:
@@ -24,8 +24,8 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Redirect 404 to Index for SPA
-        run: cp dist/client/index.html dist/client/404.html
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
 
-      - name: Deploy nsite
-        run: bunx --bun nsite-cli upload dist/client --verbose --purge --privatekey ${{ secrets.NSITE_KEY }} --servers 'https://nostr.download,https://blossom.band'
+      - name: Deploy nsyte
+        run: nsyte deploy dist/client --sec ${{ secrets.NBUNK_SECRET }}

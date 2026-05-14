@@ -1,0 +1,10 @@
+{
+  "$schema": "https://nsyte.run/schemas/config.schema.json",
+  "fallback": "/index.html",
+  "publishProfile": false,
+  "publishServerList": true,
+  "publishRelayList": true,
+  "publishAppHandler": false,
+  "relays": ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"],
+  "servers": ["https://nostr.download", "https://blossom.band"]
+}

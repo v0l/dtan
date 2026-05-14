@@ -14,7 +14,7 @@ export interface SSRResult {
 console.log(`ServerConfig:\n\tSSR=${IsSSR}\n\tRelays=${DefaultRelays.join(",")}`);
 
 const system = new NostrSystem({});
-const relayConnect = Promise.all(DefaultRelays.map((r) => system.ConnectToRelay(r, { read: true, write: false })))
+const relayConnect = Promise.all(DefaultRelays.map((r) => system.ConnectToRelay(r, { read: true, write: false })));
 
 export async function renderPage(
   url: string,
@@ -49,33 +49,32 @@ export async function renderPage(
     </SnortContext.Provider>
   );
 
-  // First render: discovers queries via useRequestBuilder → system.Query(rb),
-  // but React never calls subscribe during SSR so q.start() is never invoked.
+  // First pass: useRequestBuilder creates queries via system.Query(rb).
+  // Component-level keepAlive options keep queries alive between requests,
+  // so when the same page is requested again, QueryManager reuses existing
+  // queries with cached data — no new relay requests needed.
   renderToString(app);
 
-  // Collect query ids discovered during the render pass so we can cancel them after.
-  // This must happen after renderToString so we capture all registered queries.
-  const queryIds = system.takeSnapshot().queries.map((q) => q.id);
-
-  // Start all queries discovered during the first render, then wait for data.
-  for (const q of queryIds) {
-    system.GetQuery(q.id)?.start();
-  }
+  // FetchAll starts any newly-registered queries and waits for EOSE.
+  // For keepAlive'd queries with finished traces, this returns instantly.
   await system.FetchAll();
 
-  // Second render: queries now have data in their snapshots.
+  // Second pass: populate HTML with fetched data.
   const html = renderToString(app);
+
+  // Cancel all queries that were touched during this render to start their
+  // keepAlive countdown.  React doesn't call useSyncExternalStore's subscribe
+  // during SSR, so cancel() never fires naturally.  Queries with a keepAlive
+  // survive the 30s window and are reused next time; queries without keepAlive
+  // get the default 1s TTL and are cleaned up by the QueryManager interval.
+  const snapshot = system.takeSnapshot();
+  for (const q of snapshot.queries) {
+    system.GetQuery(q.id)?.cancel();
+  }
 
   const hydrationScript = getHydrationScript(system);
 
-  // Cancel queries from this request so stale data doesn't leak into the next.
-  // The QueryManager deduplicates by id, so without this a subsequent SSR
-  // request for a different page would get back the old Query with old data.
-  for (const id of queryIds) {
-    system.GetQuery(id)?.cancel();
-  }
-
-  const resultHtml = template.replace('<!--app-html-->', html).replace('</head>', `${hydrationScript}</head>`);
+  const resultHtml = template.replace("<!--app-html-->", html).replace("</head>", `${hydrationScript}</head>`);
 
   return { html: resultHtml, status: 200 };
 }

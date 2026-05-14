@@ -1,0 +1,4 @@
+{
+  "signature": "src/const.ts::ℹ️ Advisory — no action required this turn:\n⚠️ Newly unused exports in modified files — check if callers need updating (Knip):\n  src/const.ts:292 — SSRKeepAlive\n",
+  "sessionId": "lens-mp5eevmy-d1d836c4"
+}

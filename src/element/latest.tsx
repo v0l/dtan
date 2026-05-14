@@ -1,10 +1,10 @@
 import { RequestBuilder } from "@snort/system";
-import { TorrentKind } from "../const";
+import { SSRKeepAlive, TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "./torrent-list";
 
 export function LatestTorrents({ author }: { author?: string }) {
-  const sub = new RequestBuilder(`torrents:latest:${author}`);
+  const sub = new RequestBuilder(`torrents:latest:${author}`).withOptions({ keepAlive: SSRKeepAlive });
   sub
     .withFilter()
     .kinds([TorrentKind])

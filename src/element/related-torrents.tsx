@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { NostrTorrent } from "../nostr-torrent";
 import { RequestBuilder } from "@snort/system";
-import { TorrentKind } from "../const";
+import { SSRKeepAlive, TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "./torrent-list";
 
 export default function RelatedTorrents({ torrent }: { torrent: NostrTorrent }) {
   const req = useMemo(() => {
-    const rb = new RequestBuilder(`torrent-related:${torrent.id}`);
+    const rb = new RequestBuilder(`torrent-related:${torrent.id}`).withOptions({ keepAlive: SSRKeepAlive });
     rb.withFilter().kinds([TorrentKind]).tag("x", [torrent.infoHash]).limit(5);
     if (torrent.imdb) {
       rb.withFilter()

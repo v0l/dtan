@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { RequestBuilder } from "@snort/system";
-import { TorrentKind } from "../const";
+import { SSRKeepAlive, TorrentKind } from "../const";
 import { useRequestBuilder } from "@snort/system-react";
 import { TorrentList } from "./torrent-list";
 
@@ -12,7 +12,7 @@ interface CategoryLatestTorrentsProps {
 
 export function CategoryLatestTorrents({ tags, title, limit = 10 }: CategoryLatestTorrentsProps) {
   const sub = useMemo(() => {
-    const rb = new RequestBuilder(`torrents:latest:${tags.join(":")}`);
+    const rb = new RequestBuilder(`torrents:latest:${tags.join(":")}`).withOptions({ keepAlive: SSRKeepAlive });
     rb.withFilter().kinds([TorrentKind]).tag("t", tags).limit(limit);
     return rb;
   }, [tags, limit]);

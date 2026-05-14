@@ -2,7 +2,7 @@ import { unwrap } from "@snort/shared";
 import { RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
 import { useRequestBuilder, useUserProfile } from "@snort/system-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { FormatBytes, TorrentKind } from "../const";
+import { FormatBytes, SSRKeepAlive, TorrentKind } from "../const";
 import { ProfileImage } from "../element/profile-image";
 import { useLogin } from "../login";
 import { Button } from "../element/button";
@@ -23,7 +23,7 @@ export function TorrentPage() {
   const { id } = useParams();
   const evState = location.state && "kind" in location.state ? (location.state as TaggedNostrEvent) : undefined;
 
-  const rb = new RequestBuilder("torrent:event");
+  const rb = new RequestBuilder("torrent:event").withOptions({ keepAlive: SSRKeepAlive });
   if (!evState) {
     rb.withFilter()
       .kinds([TorrentKind])
