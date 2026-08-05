@@ -3,11 +3,13 @@
  */
 import.meta.env.SSR = true;
 import { renderPage } from "./ssr-render";
+import { getSitemap } from "./sitemap";
 import path from "path";
 
 const port = Number(process.env.PORT) || 4433;
 const distPath = path.resolve(import.meta.dir, "../dist/client");
 const templateHtml = await Bun.file(path.join(distPath, "index.html")).text();
+const siteUrl = (process.env.SITE_URL || "https://dtan.xyz").replace(/\/$/, "");
 
 function acceptsGzip(req: Request): boolean {
   const accept = req.headers.get("accept-encoding") ?? "";
@@ -20,6 +22,21 @@ const server = Bun.serve({
   async fetch(req: Request) {
     const url = new URL(req.url);
     const pathname = url.pathname;
+
+    if (pathname === "/sitemap.xml") {
+      try {
+        const xml = await getSitemap(siteUrl);
+        return new Response(xml, {
+          headers: {
+            "Content-Type": "application/xml; charset=utf-8",
+            "Cache-Control": "public, max-age=300",
+          },
+        });
+      } catch (err) {
+        console.error(`[${req.method}] ${pathname} 500`, err);
+        return new Response("Internal Server Error", { status: 500 });
+      }
+    }
 
     const staticFilePath = path.join(distPath, pathname.split("?")[0]);
     const staticFile = Bun.file(staticFilePath);

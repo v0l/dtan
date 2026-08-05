@@ -5,9 +5,11 @@ import fs from "node:fs/promises";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { renderPage } from "./ssr-render";
+import { getSitemap } from "./sitemap";
 
 const port = Number(process.env.PORT) || 5174;
 const base = process.env.BASE || "/";
+const siteUrl = (process.env.SITE_URL || "https://dtan.xyz").replace(/\/$/, "");
 
 const vite = await createViteServer({
   server: { middlewareMode: true },
@@ -17,6 +19,17 @@ const vite = await createViteServer({
 
 const app = express();
 app.use(vite.middlewares);
+
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const xml = await getSitemap(siteUrl);
+    console.log(`[${req.method}] ${req.originalUrl} 200`);
+    res.status(200).set({ "Content-Type": "application/xml; charset=utf-8" }).send(xml);
+  } catch (err) {
+    console.error(`[${req.method}] ${req.originalUrl} 500`, err);
+    res.status(500).end("Internal Server Error");
+  }
+});
 
 app.use("*all", async (req, res) => {
   try {

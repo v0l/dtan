@@ -1,10 +1,10 @@
 import { renderToString } from "react-dom/server";
 import { createStaticHandler, createStaticRouter, StaticRouterProvider } from "react-router-dom";
 import { routes } from "../src/main";
-import { NostrSystem } from "@snort/system";
 import { SnortContext } from "@snort/system-react";
 import { getHydrationScript } from "../src/ssr-hydration";
 import { DefaultRelays, IsSSR } from "../src/const";
+import { system, waitForRelays } from "./nostr-system";
 
 export interface SSRResult {
   html: string;
@@ -12,35 +12,6 @@ export interface SSRResult {
 }
 
 console.log(`ServerConfig:\n\tSSR=${IsSSR}\n\tRelays=${DefaultRelays.join(",")}`);
-
-const system = new NostrSystem({});
-
-// ---------------------------------------------------------------------------
-// Relay connections
-//
-// Connect eagerly in the background instead of blocking module load / the first
-// request on ALL relays. A single slow or hung relay (aggravated by SYN drops
-// in the AVS/GSL scrubbing path) no longer stalls startup or first paint.
-// waitForRelays() waits for them with a bounded timeout; once they settle it
-// resolves instantly for every later request.
-// ---------------------------------------------------------------------------
-const relayConnectPromise = Promise.allSettled(
-  DefaultRelays.map((r) =>
-    system.ConnectToRelay(r, { read: true, write: false }).catch((e) => {
-      console.error(`[ssr] failed to connect relay ${r}`, e);
-    }),
-  ),
-);
-
-/**
- * Wait for relays to be ready, bounded so a hung relay can't block a render.
- */
-function waitForRelays(timeoutMs = 4000): Promise<void> {
-  return Promise.race([
-    relayConnectPromise as Promise<unknown>,
-    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
-  ]).then(() => undefined);
-}
 
 // ---------------------------------------------------------------------------
 // Rendered-HTML cache (stale-while-revalidate)
