@@ -5,6 +5,7 @@ import { SnortContext } from "@snort/system-react";
 import { getHydrationScript } from "../src/ssr-hydration";
 import { DefaultRelays, IsSSR } from "../src/const";
 import { system, waitForRelays } from "./nostr-system";
+import { SitemapQueryPrefix } from "./sitemap";
 
 export interface SSRResult {
   html: string;
@@ -156,6 +157,9 @@ async function renderFresh(
   // get the default 1s TTL and are cleaned up by the QueryManager interval.
   const snapshot = system.takeSnapshot();
   for (const q of snapshot.queries) {
+    // Don't kill the sitemap generator's query — cancelling it mid-fetch means
+    // it never receives EOSE and the sitemap ends up with no torrent URLs.
+    if (q.id.startsWith(SitemapQueryPrefix)) continue;
     system.GetQuery(q.id)?.cancel();
   }
 

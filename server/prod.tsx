@@ -3,7 +3,7 @@
  */
 import.meta.env.SSR = true;
 import { renderPage } from "./ssr-render";
-import { getSitemap } from "./sitemap";
+import { getSitemap, warmSitemap } from "./sitemap";
 import path from "path";
 
 const port = Number(process.env.PORT) || 4433;
@@ -24,18 +24,14 @@ const server = Bun.serve({
     const pathname = url.pathname;
 
     if (pathname === "/sitemap.xml") {
-      try {
-        const xml = await getSitemap(siteUrl);
-        return new Response(xml, {
-          headers: {
-            "Content-Type": "application/xml; charset=utf-8",
-            "Cache-Control": "public, max-age=300",
-          },
-        });
-      } catch (err) {
-        console.error(`[${req.method}] ${pathname} 500`, err);
-        return new Response("Internal Server Error", { status: 500 });
-      }
+      // Synchronous + non-throwing: crawlers always get valid XML fast.
+      const xml = getSitemap(siteUrl);
+      return new Response(xml, {
+        headers: {
+          "Content-Type": "application/xml; charset=utf-8",
+          "Cache-Control": "public, max-age=300",
+        },
+      });
     }
 
     const staticFilePath = path.join(distPath, pathname.split("?")[0]);
@@ -78,6 +74,9 @@ const server = Bun.serve({
     }
   },
 });
+
+// Build the sitemap up-front so the first crawler request is already complete.
+warmSitemap(siteUrl);
 
 console.log(`Server running at http://localhost:${server.port}`);
 

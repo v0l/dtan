@@ -14,10 +14,11 @@ const MaxTorrentUrls = 2000;
 /** How long a relay fetch for sitemap data is allowed to run before we fall back to what we have. */
 const FetchBudgetMs = 8000;
 
+/** Query-id prefix, so the SSR renderer's query cleanup can skip sitemap queries. */
+export const SitemapQueryPrefix = "sitemap:torrents:";
+
 /** Serve the last-known-good sitemap for this long before treating it as fresh again. */
 const SitemapTTL = 10 * 60_000; // 10 minutes
-/** Serve stale content (while regenerating in the background) up to this long. */
-const SitemapStaleTTL = 60 * 60_000; // 1 hour
 
 interface CacheEntry {
   xml: string;
@@ -62,16 +63,32 @@ function staticUrls(baseUrl: string): Array<SitemapUrl> {
   ];
 }
 
+let queryCounter = 0;
+
 async function fetchTorrentUrls(baseUrl: string): Promise<Array<SitemapUrl>> {
   await waitForRelays();
 
-  const rb = new RequestBuilder("sitemap:torrents");
+  // Unique id per run: a stable id can collide with a still-open query from a
+  // previous run (or get cancelled by the SSR renderer's cleanup pass).
+  const queryId = `${SitemapQueryPrefix}${queryCounter++}`;
+  const rb = new RequestBuilder(queryId);
   rb.withFilter().kinds([TorrentKind]).limit(MaxTorrentUrls);
 
+  // NOTE: QueryManager.fetch() rejects after ~30s if EOSE never arrives. We race
+  // it against a shorter budget, so the loser must have a catch attached or it
+  // becomes an unhandled rejection (which can take the server down).
+  const fetchPromise = system.Fetch(rb).catch((e) => {
+    console.error("[sitemap] relay fetch failed", e);
+    return [] as Array<TaggedNostrEvent>;
+  });
+
   const events = await Promise.race([
-    system.Fetch(rb),
+    fetchPromise,
     new Promise<Array<TaggedNostrEvent>>((resolve) => setTimeout(() => resolve([]), FetchBudgetMs)),
   ]);
+
+  // Release the query so it doesn't linger open across regenerations.
+  system.GetQuery(queryId)?.cancel();
 
   return events
     .sort((a, b) => b.created_at - a.created_at)
@@ -105,35 +122,50 @@ async function generate(baseUrl: string): Promise<string> {
   return buildXml([...staticUrls(baseUrl), ...torrentUrls]);
 }
 
+function refreshInBackground(baseUrl: string) {
+  if (regenerating) return;
+  regenerating = true;
+  void generate(baseUrl)
+    .then((xml) => {
+      cache = { xml, storedAt: Date.now() };
+    })
+    .catch((e) => console.error("[sitemap] background regeneration failed", e))
+    .finally(() => {
+      regenerating = false;
+    });
+}
+
 /**
- * Get the sitemap XML for `baseUrl`, using a stale-while-revalidate cache so
- * requests never block on a full relay fetch of the latest torrents.
+ * Get the sitemap XML for `baseUrl`.
+ *
+ * This NEVER blocks on relays: a cold cache is answered immediately with the
+ * static URL set (always valid XML) while the full torrent list is fetched in
+ * the background. Blocking here previously meant a ~12s response on the first
+ * request after a restart, which crawlers (Google Search Console) report as
+ * "Sitemap could not be read".
  */
-export async function getSitemap(baseUrl: string): Promise<string> {
+export function getSitemap(baseUrl: string): string {
   const now = Date.now();
 
-  if (cache) {
-    const age = now - cache.storedAt;
-    if (age < SitemapTTL) {
-      return cache.xml;
-    }
-    if (age < SitemapStaleTTL) {
-      if (!regenerating) {
-        regenerating = true;
-        void generate(baseUrl)
-          .then((xml) => {
-            cache = { xml, storedAt: Date.now() };
-          })
-          .catch((e) => console.error("[sitemap] background regeneration failed", e))
-          .finally(() => {
-            regenerating = false;
-          });
-      }
-      return cache.xml;
-    }
+  if (!cache) {
+    // Cold: cache the static-only sitemap so we always have something valid to
+    // serve, and fill in torrents asynchronously.
+    cache = { xml: buildXml(staticUrls(baseUrl)), storedAt: 0 };
+    refreshInBackground(baseUrl);
+    return cache.xml;
   }
 
-  const xml = await generate(baseUrl);
-  cache = { xml, storedAt: Date.now() };
-  return xml;
+  const age = now - cache.storedAt;
+  if (age >= SitemapTTL) {
+    refreshInBackground(baseUrl);
+  }
+  return cache.xml;
+}
+
+/** Warm the cache at server start so the first crawler hit gets a full sitemap. */
+export function warmSitemap(baseUrl: string) {
+  if (!cache) {
+    cache = { xml: buildXml(staticUrls(baseUrl)), storedAt: 0 };
+  }
+  refreshInBackground(baseUrl);
 }

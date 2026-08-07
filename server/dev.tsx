@@ -20,15 +20,10 @@ const vite = await createViteServer({
 const app = express();
 app.use(vite.middlewares);
 
-app.get("/sitemap.xml", async (req, res) => {
-  try {
-    const xml = await getSitemap(siteUrl);
-    console.log(`[${req.method}] ${req.originalUrl} 200`);
-    res.status(200).set({ "Content-Type": "application/xml; charset=utf-8" }).send(xml);
-  } catch (err) {
-    console.error(`[${req.method}] ${req.originalUrl} 500`, err);
-    res.status(500).end("Internal Server Error");
-  }
+app.get("/sitemap.xml", (req, res) => {
+  const xml = getSitemap(siteUrl);
+  console.log(`[${req.method}] ${req.originalUrl} 200`);
+  res.status(200).set({ "Content-Type": "application/xml; charset=utf-8" }).send(xml);
 });
 
 app.use("*all", async (req, res) => {
