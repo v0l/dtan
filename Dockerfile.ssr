@@ -10,7 +10,6 @@ RUN apk add --no-cache musl-dev build-base
 WORKDIR /app
 COPY server/Cargo.toml server/Cargo.lock ./
 COPY server/src ./src
-COPY server/testdata ./testdata
 RUN cargo build --release
 
 FROM alpine:3.20

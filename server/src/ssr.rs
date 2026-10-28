@@ -1,5 +1,4 @@
-use crate::event::Filter;
-use crate::store::Store;
+use crate::mirror::Mirror;
 use rquickjs::{Context, Function, Runtime};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -54,10 +53,9 @@ fn modified(path: &Path) -> Option<SystemTime> {
     std::fs::metadata(path).and_then(|m| m.modified()).ok()
 }
 
-pub fn run_filters(store: &Store, filters_json: &str, misses: &Mutex<Vec<Value>>) -> String {
+pub fn run_filters(mirror: &Mirror, handle: &tokio::runtime::Handle, filters_json: &str, misses: &Mutex<Vec<Value>>) -> String {
     let parsed: Vec<Value> = serde_json::from_str(filters_json).unwrap_or_default();
-    let filters: Vec<Filter> = parsed.iter().filter_map(Filter::from_json).collect();
-    let events = store.query(&filters);
+    let events = handle.block_on(mirror.query(&parsed));
     if events.is_empty() {
         misses.lock().unwrap().extend(parsed);
     }
@@ -66,7 +64,7 @@ pub fn run_filters(store: &Store, filters_json: &str, misses: &Mutex<Vec<Value>>
         if i > 0 {
             out.push(',');
         }
-        out.push_str(&serde_json::to_string(ev.as_ref()).unwrap_or_else(|_| "null".into()));
+        out.push_str(&ev.as_json());
     }
     out.push(']');
     out
@@ -80,7 +78,7 @@ struct Engine {
 }
 
 impl Engine {
-    fn load(bundle: &Path, store: Store) -> Result<Engine, String> {
+    fn load(bundle: &Path, mirror: Mirror, handle: tokio::runtime::Handle) -> Result<Engine, String> {
         let source = std::fs::read_to_string(bundle).map_err(|e| format!("{}: {e}", bundle.display()))?;
         let rt = Runtime::new().map_err(|e| e.to_string())?;
         rt.set_memory_limit(MEMORY_LIMIT);
@@ -89,7 +87,7 @@ impl Engine {
         let misses: Arc<Mutex<Vec<Value>>> = Default::default();
         let m = misses.clone();
         ctx.with(|ctx| {
-            let query = Function::new(ctx.clone(), move |filters: String| -> String { run_filters(&store, &filters, &m) }).map_err(|e| e.to_string())?;
+            let query = Function::new(ctx.clone(), move |filters: String| -> String { run_filters(&mirror, &handle, &filters, &m) }).map_err(|e| e.to_string())?;
             ctx.globals().set("relayQuery", query).map_err(|e| e.to_string())?;
             let log = Function::new(ctx.clone(), |level: String, msg: String| tracing::warn!("ssr {level}: {msg}")).map_err(|e| e.to_string())?;
             ctx.globals().set("hostLog", log).map_err(|e| e.to_string())?;
@@ -122,13 +120,15 @@ impl Engine {
 }
 
 impl Renderer {
-    pub fn start(bundle: PathBuf, workers: usize, store: Store) -> Renderer {
+    pub fn start(bundle: PathBuf, workers: usize, mirror: Mirror) -> Renderer {
+        let handle = tokio::runtime::Handle::current();
         let (tx, rx) = mpsc::sync_channel::<Job>(64);
         let rx = Arc::new(Mutex::new(rx));
         for n in 0..workers.max(1) {
             let rx = rx.clone();
             let bundle = bundle.clone();
-            let store = store.clone();
+            let mirror = mirror.clone();
+            let handle = handle.clone();
             std::thread::Builder::new()
                 .name(format!("ssr-{n}"))
                 .spawn(move || {
@@ -139,7 +139,7 @@ impl Renderer {
                             Err(_) => return,
                         };
                         if engine.as_ref().map(|e| e.loaded != modified(&bundle)).unwrap_or(true) {
-                            engine = match Engine::load(&bundle, store.clone()) {
+                            engine = match Engine::load(&bundle, mirror.clone(), handle.clone()) {
                                 Ok(e) => Some(e),
                                 Err(e) => {
                                     let _ = job.reply.send(Err(e));

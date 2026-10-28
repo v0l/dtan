@@ -1,14 +1,12 @@
-use crate::event::{Event, Filter};
-use crate::nip19;
+use crate::mirror::{Mirror, TORRENT};
 use crate::ssr::{assemble, escape_html, head_tags, Renderer};
-use crate::store::Store;
-use crate::upstream::Upstream;
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Request, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
+use nostr::nips::nip19::{Nip19Event, ToBech32};
+use nostr::prelude::*;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,8 +18,7 @@ const SITEMAP_TORRENTS: usize = 2000;
 const ON_DEMAND_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub struct App {
-    pub store: Store,
-    pub upstream: Upstream,
+    pub mirror: Mirror,
     pub renderer: Option<Renderer>,
     pub dist: PathBuf,
     pub public_url: Option<String>,
@@ -33,7 +30,6 @@ pub fn router(app: Shared) -> Router {
     let assets = ServeDir::new(app.dist.join("client")).append_index_html_on_directories(false);
     Router::new()
         .route("/sitemap.xml", get(sitemap))
-        .route("/", get(root))
         .fallback_service(assets.fallback(get(page).with_state(app.clone())))
         .layer(axum::middleware::map_response(cache_assets))
         .layer(CompressionLayer::new())
@@ -45,6 +41,10 @@ async fn cache_assets(req_path: axum::extract::OriginalUri, mut res: Response) -
         res.headers_mut().insert(header::CACHE_CONTROL, "public, max-age=31536000, immutable".parse().unwrap());
     }
     res
+}
+
+fn nevent(ev: &Event) -> Nip19Event {
+    Nip19Event::new(ev.id).author(ev.pubkey).kind(ev.kind)
 }
 
 fn origin(app: &App, headers: &HeaderMap) -> String {
@@ -71,13 +71,6 @@ fn html(status: u16, body: String) -> Response {
     res
 }
 
-async fn root(State(app): State<Shared>, ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>, headers: HeaderMap, req: Request) -> Response {
-    match ws {
-        Ok(ws) => ws.on_upgrade(move |socket| relay_socket(socket, app)),
-        Err(_) => page_for(app, headers, req.uri().path_and_query().map(|p| p.to_string()).unwrap_or_else(|| "/".into())).await,
-    }
-}
-
 async fn page(State(app): State<Shared>, headers: HeaderMap, req: Request) -> Response {
     page_for(app, headers, req.uri().path_and_query().map(|p| p.to_string()).unwrap_or_else(|| "/".into())).await
 }
@@ -92,16 +85,18 @@ async fn resolve_misses(app: &App, misses: &[Value]) -> bool {
         let only_profiles = m.get("kinds").and_then(Value::as_array).is_some_and(|k| k == &[json!(0)]);
         if only_profiles {
             if let Some(authors) = m.get("authors").and_then(Value::as_array) {
-                app.upstream.want_profiles(authors.iter().filter_map(|a| a.as_str().map(str::to_string)));
+                app.mirror.want_profiles(authors.iter().filter_map(|a| a.as_str().and_then(|a| PublicKey::from_hex(a).ok())));
             }
-        } else if app.upstream.should_try(&m.to_string()) {
-            blocking.push(m.clone());
+        } else if app.mirror.should_try(&m.to_string()) {
+            if let Some((filter, _)) = crate::mirror::parse_filter(m) {
+                blocking.push(filter);
+            }
         }
     }
     if blocking.is_empty() {
         return false;
     }
-    app.upstream.fetch(blocking, ON_DEMAND_TIMEOUT).await > 0
+    app.mirror.fetch(blocking, ON_DEMAND_TIMEOUT).await > 0
 }
 
 pub async fn page_for(app: Shared, headers: HeaderMap, url: String) -> Response {
@@ -141,9 +136,10 @@ async fn sitemap(State(app): State<Shared>, headers: HeaderMap) -> Response {
             urls.push((format!("{origin}/search?tags={tag}"), None, "daily", "0.5"));
         }
     }
-    for ev in app.store.query(&[Filter { kinds: Some(vec![2003]), limit: Some(SITEMAP_TORRENTS), ..Default::default() }]) {
-        if let Some(link) = nip19::nevent(&ev.id, &ev.pubkey, ev.kind) {
-            let lastmod = chrono_iso(ev.created_at);
+    let newest = app.mirror.query(&[json!({"kinds": [TORRENT], "limit": SITEMAP_TORRENTS})]).await;
+    for ev in newest {
+        if let Ok(link) = nevent(&ev).to_bech32() {
+            let lastmod = chrono_iso(ev.created_at.as_secs() as i64);
             urls.push((format!("{origin}/e/{link}"), Some(lastmod), "monthly", "0.7"));
         }
     }
@@ -174,50 +170,34 @@ pub fn chrono_iso(secs: i64) -> String {
     format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", rem / 3600, rem % 3600 / 60, rem % 60)
 }
 
-async fn relay_socket(mut socket: WebSocket, app: Shared) {
-    while let Some(Ok(msg)) = socket.recv().await {
-        let Message::Text(text) = msg else { continue };
-        let Ok(Value::Array(parts)) = serde_json::from_str::<Value>(&text) else { continue };
-        let reply = |v: Value| Message::text(v.to_string());
-        match parts.first().and_then(Value::as_str) {
-            Some("REQ") if parts.len() >= 2 => {
-                let sub = parts[1].clone();
-                let filters: Vec<Filter> = parts[2..].iter().filter_map(Filter::from_json).collect();
-                for ev in app.store.query(&filters) {
-                    if socket.send(reply(json!(["EVENT", sub, ev.as_ref()]))).await.is_err() {
-                        return;
-                    }
-                }
-                if socket.send(reply(json!(["EOSE", sub]))).await.is_err() {
-                    return;
-                }
-            }
-            Some("EVENT") if parts.len() >= 2 => {
-                let ev: Option<Event> = serde_json::from_value(parts[1].clone()).ok();
-                let (id, ok, why) = match ev {
-                    Some(ev) if matches!(ev.kind, 0 | 2003 | 1111 | 9735) => {
-                        let id = ev.id.clone();
-                        let ok = app.upstream.ingest(ev);
-                        (id, ok, if ok { "" } else { "duplicate or invalid" })
-                    }
-                    Some(ev) => (ev.id, false, "blocked: kind not accepted"),
-                    None => (String::new(), false, "invalid: bad event"),
-                };
-                if socket.send(reply(json!(["OK", id, ok, why]))).await.is_err() {
-                    return;
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::testing::*;
-    use axum::body::{to_bytes, Body};
+        use axum::body::{to_bytes, Body};
+    use nostr_database::NostrDatabase;
     use tower::ServiceExt;
+
+    fn keys(n: u8) -> Keys {
+        Keys::new(SecretKey::from_slice(&[n.max(1); 32]).unwrap())
+    }
+
+    fn torrent(n: u8, at: u64, title: &str, tags: Vec<Vec<&str>>) -> Event {
+        let mut all = vec![vec!["title", title], vec!["x", "aabbccddeeff00112233445566778899aabbccdd"]];
+        all.extend(tags);
+        EventBuilder::new(Kind::from(TORRENT), "desc")
+            .tags(all.into_iter().map(|t| Tag::parse(t).unwrap()))
+            .custom_created_at(Timestamp::from_secs(at))
+            .finalize(&keys(n))
+            .unwrap()
+    }
+
+    fn profile(n: u8, name: &str) -> Event {
+        EventBuilder::new(Kind::Metadata, format!("{{\"name\":\"{name}\"}}")).custom_created_at(Timestamp::from_secs(1_600_000_000)).finalize(&keys(n)).unwrap()
+    }
+
+    fn link(ev: &Event) -> String {
+        nevent(ev).to_bech32().unwrap()
+    }
 
     fn dist() -> PathBuf {
         PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../dist"))
@@ -228,10 +208,9 @@ mod tests {
             eprintln!("skipping: run `bun run build` first");
             return None;
         }
-        let store = Store::new(0);
-        let upstream = Upstream::new(vec![], store.clone(), 10);
-        let renderer = renderer.then(|| Renderer::start(dist().join("ssr/render.js"), 1, store.clone()));
-        Some(Arc::new(App { store, upstream, renderer, dist: dist(), public_url: Some("https://dtan.xyz".into()) }))
+        let mirror = Mirror::new(0, None);
+        let renderer = renderer.then(|| Renderer::start(dist().join("ssr/render.js"), 1, mirror.clone()));
+        Some(Arc::new(App { mirror, renderer, dist: dist(), public_url: Some("https://dtan.xyz".into()) }))
     }
 
     async fn get_page(app: Shared, uri: &str) -> (u16, String) {
@@ -259,8 +238,8 @@ mod tests {
     async fn the_home_page_is_rendered_from_the_in_memory_store_with_no_network() {
         let Some(app) = app(true) else { return };
         let t = torrent(1, 1_700_000_000, "Ubuntu Desktop ISO", vec![vec!["t", "application"]]);
-        app.upstream.ingest(signed(1, 1_600_000_000, 0, vec![], "{\"name\":\"alice\"}"));
-        app.upstream.ingest(t.clone());
+        app.mirror.database.save_event(&profile(1, "alice")).await.unwrap();
+        app.mirror.database.save_event(&t).await.unwrap();
         let (status, body) = get_page(app.clone(), "/").await;
         assert_eq!(status, 200);
         assert!(body.contains("Ubuntu Desktop ISO"), "torrent title is in the html");
@@ -268,8 +247,8 @@ mod tests {
         assert!(body.contains("<title>DTAN.XYZ</title>"));
         assert!(body.contains("id=\"ssr-data\""));
         assert!(body.contains("rel=\"canonical\" href=\"https://dtan.xyz/\""));
-        let link = nip19::nevent(&t.id, &t.pubkey, 2003).unwrap();
-        let (status, detail) = get_page(app.clone(), &format!("/e/{link}")).await;
+        let detail_link = link(&t);
+        let (status, detail) = get_page(app.clone(), &format!("/e/{detail_link}")).await;
         assert_eq!(status, 200);
         assert!(detail.contains("<title>Ubuntu Desktop ISO | DTAN.XYZ</title>"));
         assert!(detail.contains("alice"), "profile comes from the store");
@@ -284,7 +263,7 @@ mod tests {
         assert!(body.contains("noindex"));
         let (status, _) = get_page(app.clone(), "/e/garbage").await;
         assert_eq!(status, 404);
-        let (status, _) = get_page(app, &format!("/e/{}", nip19::nevent(&"cc".repeat(32), &"dd".repeat(32), 2003).unwrap())).await;
+        let (status, _) = get_page(app, &format!("/e/{}", link(&torrent(9, 5, "never stored", vec![])))).await;
         assert_eq!(status, 404);
     }
 
@@ -302,11 +281,11 @@ mod tests {
     async fn the_sitemap_lists_stored_torrents() {
         let Some(app) = app(true) else { return };
         let t = torrent(1, 1_700_000_000, "x", vec![]);
-        app.upstream.ingest(t.clone());
+        app.mirror.database.save_event(&t).await.unwrap();
         let (status, xml) = get_page(app, "/sitemap.xml").await;
         assert_eq!(status, 200);
         assert!(xml.contains("<loc>https://dtan.xyz/categories</loc>"));
-        assert!(xml.contains(&format!("/e/{}", nip19::nevent(&t.id, &t.pubkey, 2003).unwrap())));
+        assert!(xml.contains(&format!("/e/{}", link(&t))));
         assert!(xml.contains("<lastmod>2023-11-14T22:13:20Z</lastmod>"));
     }
 
@@ -314,7 +293,7 @@ mod tests {
     async fn a_page_is_rendered_in_well_under_a_network_round_trip() {
         let Some(app) = app(true) else { return };
         for i in 0..300 {
-            app.upstream.ingest(torrent(1, 1_700_000_000 + i, &format!("Torrent {i}"), vec![vec!["t", "movie"]]));
+            app.mirror.database.save_event(&torrent(1, 1_700_000_000 + i, &format!("Torrent {i}"), vec![vec!["t", "movie"]])).await.unwrap();
         }
         get_page(app.clone(), "/").await;
         let start = std::time::Instant::now();

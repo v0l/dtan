@@ -1,8 +1,5 @@
-mod event;
-mod nip19;
+mod mirror;
 mod ssr;
-mod store;
-mod upstream;
 mod web;
 
 use std::path::PathBuf;
@@ -13,7 +10,7 @@ fn env(name: &str, default: &str) -> String {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into())).init();
     let _ = rustls::crypto::ring::default_provider().install_default();
 
@@ -24,19 +21,31 @@ async fn main() {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    let max_events: usize = env("MAX_EVENTS", "200000").parse().expect("MAX_EVENTS");
-    let backfill: usize = env("BACKFILL", "5000").parse().expect("BACKFILL");
-    let workers: usize = env("SSR_WORKERS", "2").parse().expect("SSR_WORKERS");
+    let max_events: usize = env("MAX_EVENTS", "200000").parse()?;
+    let backfill: usize = env("BACKFILL", "5000").parse()?;
+    let workers: usize = env("SSR_WORKERS", "2").parse()?;
+    let relay_port: Option<u16> = std::env::var("RELAY_PORT").ok().and_then(|p| p.parse().ok());
     let public_url = std::env::var("PUBLIC_URL").ok().filter(|s| !s.is_empty());
 
-    let store = store::Store::new(max_events);
-    let upstream = upstream::Upstream::new(relays, store.clone(), backfill);
-    upstream.start();
-    let bundle = PathBuf::from(env("SSR_BUNDLE", &dist.join("ssr/render.js").to_string_lossy()));
-    let renderer = ssr::Renderer::start(bundle, workers, store.clone());
+    let mirror = mirror::Mirror::new(max_events, relay_port);
+    if relay_port.is_some() {
+        mirror.relay.run().await?;
+        tracing::info!("relay on {}", mirror.relay.url().await);
+    }
+    let m = mirror.clone();
+    tokio::spawn(async move {
+        if let Err(e) = m.follow(&relays, backfill).await {
+            tracing::error!("follow failed: {e}");
+        }
+        let events = m.len().await;
+        tracing::info!(events, "initial sync complete");
+    });
 
-    let app = Arc::new(web::App { store, upstream, renderer: Some(renderer), dist, public_url });
-    let listener = tokio::net::TcpListener::bind(&bind).await.expect("bind");
+    let bundle = PathBuf::from(env("SSR_BUNDLE", &dist.join("ssr/render.js").to_string_lossy()));
+    let renderer = ssr::Renderer::start(bundle, workers, mirror.clone());
+    let app = Arc::new(web::App { mirror, renderer: Some(renderer), dist, public_url });
+    let listener = tokio::net::TcpListener::bind(&bind).await?;
     tracing::info!("listening on {bind}");
-    axum::serve(listener, web::router(app)).await.expect("serve");
+    axum::serve(listener, web::router(app)).await?;
+    Ok(())
 }

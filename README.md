@@ -38,12 +38,12 @@ Simple docker image which can easily be deployed anywhere and will add another r
 ## Server-side rendering
 
 `server/` is a Rust (axum) server that renders the React app to HTML inside an embedded QuickJS engine,
-then the browser hydrates it. Torrent events live in an in-memory relay (`server/src/store.rs`) that is
-filled from upstream relays in the background. The renderer calls it through a native `relayQuery`
+then the browser hydrates it. Torrent events live in an in-memory nostr database (`nostr-memory`) that a
+`nostr-sdk` client fills from upstream relays in the background (`server/src/mirror.rs`). The renderer calls it through a native `relayQuery`
 function, so a page render makes no network calls and takes a few milliseconds. Unknown links
 (a torrent not yet in memory) trigger one bounded upstream fetch, then a re-render, else a real 404.
 
-The same process also speaks NIP-01 on `/` over WebSocket (REQ and EVENT), so it doubles as a relay.
+Setting `RELAY_PORT` also serves the same database as a relay (`nostr-relay-builder`).
 
 ```bash
 bun install
@@ -52,5 +52,5 @@ cd server && cargo run --release
 ```
 
 Environment: `BIND` (0.0.0.0:3000), `DIST` (dist), `RELAYS` (comma separated), `MAX_EVENTS` (200000),
-`BACKFILL` (5000), `SSR_WORKERS` (2), `PUBLIC_URL`, `SSR_BUNDLE`.
+`BACKFILL` (5000), `SSR_WORKERS` (2), `RELAY_PORT`, `PUBLIC_URL`, `SSR_BUNDLE`.
 `bun run dev` still runs the plain SPA with Vite. `cargo test` needs `bun run build` first for the page tests.
