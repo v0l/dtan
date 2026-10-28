@@ -231,34 +231,40 @@ export function FormatBytes(b: number, f?: number) {
   return b.toFixed(f) + " B";
 }
 
-const intlSats = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+function roundTo(n: number, digits: number) {
+  return Number(n.toFixed(digits)).toString();
+}
 
-const intlShortSats = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
-
-function formatShort(fmt: Intl.NumberFormat, n: number) {
+function formatShort(digits: number, n: number) {
   if (n < 2e3) {
     return n;
   } else if (n < 1e6) {
-    return `${fmt.format(n / 1e3)}K`;
+    return `${roundTo(n / 1e3, digits)}K`;
   } else if (n < 1e9) {
-    return `${fmt.format(n / 1e6)}M`;
+    return `${roundTo(n / 1e6, digits)}M`;
   } else {
-    return `${fmt.format(n / 1e9)}G`;
+    return `${roundTo(n / 1e9, digits)}G`;
   }
 }
 
 export function formatSats(n: number) {
-  return formatShort(intlSats, n);
+  return formatShort(2, n);
 }
 
 export function formatSatsCompact(n: number) {
-  return formatShort(intlShortSats, n);
+  return formatShort(0, n);
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+export function formatDate(unixSeconds: number) {
+  const d = new Date(unixSeconds * 1000);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+export function formatDateTime(unixSeconds: number) {
+  const d = new Date(unixSeconds * 1000);
+  return `${formatDate(unixSeconds)} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
 }
 
 export const Trackers = [
@@ -281,7 +287,7 @@ export const DefaultRelays = [
 /**
  * Was the source build for the server
  */
-export const IsSSR = typeof import.meta.env.SSR === "boolean" ? import.meta.env.SSR : typeof window === "undefined";
+export const IsSSR = import.meta.env.SSR === true;
 
 /**
  * How long (ms) to keep queries alive on the server after the last subscriber disconnects.

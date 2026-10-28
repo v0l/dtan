@@ -8,15 +8,11 @@ import { SearchPage } from "./page/search";
 import { RelaysPage } from "./page/relays";
 import LoginPage from "./page/login";
 import { CategoriesPage } from "./page/categories";
-import { initSystem } from "./system";
+import { NotFoundPage } from "./page/not-found";
 
 export const routes = [
   {
     element: <Layout />,
-    loader: async () => {
-      await initSystem();
-      return null;
-    },
     children: [
       {
         path: "/",
@@ -49,6 +45,10 @@ export const routes = [
       {
         path: "/login",
         element: <LoginPage />,
+      },
+      {
+        path: "*",
+        element: <NotFoundPage />,
       },
     ],
   },

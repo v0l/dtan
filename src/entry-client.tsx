@@ -1,18 +1,27 @@
 import "./index.css";
-import { hydrateRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import { SnortContext } from "@snort/system-react";
 import { routes } from "./main";
-import { System } from "./system";
-import { hydrateSnort } from "./ssr-hydration";
+import { System, initSystem } from "./system";
+import { App } from "./app";
+import { finishHydration, loadHydration } from "./ssr";
 
-hydrateSnort(System);
+loadHydration();
+await initSystem();
 
-const router = createBrowserRouter(routes);
-
-hydrateRoot(
-  document.getElementById("root")!,
+const root = document.getElementById("root")!;
+const app = (
   <SnortContext.Provider value={System}>
-    <RouterProvider router={router} />
-  </SnortContext.Provider>,
+    <App>
+      <RouterProvider router={createBrowserRouter(routes)} />
+    </App>
+  </SnortContext.Provider>
 );
+
+if (root.childElementCount > 0) {
+  hydrateRoot(root, app);
+} else {
+  finishHydration();
+  createRoot(root).render(app);
+}

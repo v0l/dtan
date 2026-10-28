@@ -30,3 +30,6 @@ dist-ssr
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+server/target/
+.pi-lens/
+.vscode/

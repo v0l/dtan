@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Button } from "../element/button";
 import { useRelays } from "../relays";
 import { sanitizeRelayUrl } from "@snort/shared";
+import { useHead } from "../ssr";
 
 export function RelaysPage() {
   const relays = useRelays();
+  useHead({ title: "Relays", path: "/relays", noindex: true });
   const [newRelay, setNewRelay] = useState("");
   return (
     <>

@@ -1,6 +1,6 @@
 import { EventKind, RequestBuilder } from "@snort/system";
 import { useLogin } from "./login";
-import { useRequestBuilder } from "@snort/system-react";
+import { useRequestBuilder } from "./hooks/nostr";
 import { SSRKeepAlive } from "./const";
 
 export function useFollowList() {

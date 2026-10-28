@@ -1,4 +1,4 @@
-import { useUserProfile } from "@snort/system-react";
+import { useUserProfile } from "../hooks/nostr";
 import { Link, useParams } from "react-router-dom";
 import { ProfileImage } from "../element/profile-image";
 import { CachedMetadata, parseNostrLink } from "@snort/system";
@@ -6,14 +6,19 @@ import { LatestTorrents } from "../element/latest";
 import { Text } from "../element/text";
 import { LoginState, useLogin } from "../login";
 import { Button } from "../element/button";
+import { NotFoundPage } from "./not-found";
 import { hexToBech32 } from "@snort/shared";
+import { setStatus, useHead } from "../ssr";
 
 export function ProfilePage() {
   const params = useParams();
   const id = params.id as string;
   const link = parseNostrLink(id);
 
-  if (!link) return;
+  if (!link) {
+    setStatus(404);
+    return <NotFoundPage />;
+  }
   return (
     <div className="flex flex-col gap-4">
       <ProfileSection pubkey={link.id} />
@@ -24,6 +29,12 @@ export function ProfilePage() {
 
 export function ProfileSection({ pubkey }: { pubkey: string }) {
   const profile = useUserProfile(pubkey);
+  useHead({
+    title: profile?.name || hexToBech32("npub", pubkey).slice(0, 12),
+    description: profile?.about?.slice(0, 200),
+    image: profile?.picture,
+    path: `/p/${hexToBech32("npub", pubkey)}`,
+  });
   const login = useLogin();
 
   return (

@@ -8,6 +8,7 @@ import * as bencode from "../bencode";
 import { sha1 } from "@noble/hashes/legacy.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Link, useNavigate } from "react-router-dom";
+import { useHead } from "../ssr";
 import { EventExt, NostrLink } from "@snort/system";
 import { NostrTorrent, TorrentTag } from "../nostr-torrent";
 
@@ -56,6 +57,7 @@ function entryIsValid(entry: TorrentEntry) {
 export function NewPage() {
   const login = useLogin();
   const navigate = useNavigate();
+  useHead({ title: "New torrent", noindex: true });
   const [newLabelType, setNewLabelType] = useState<TorrentTag["type"]>("imdb");
   const [newLabelSubType, setNewLabelSubType] = useState("");
   const [newLabelValue, setNewLabelValue] = useState("");

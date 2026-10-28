@@ -4,10 +4,12 @@ import { LoginState } from "../login";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { bech32ToHex } from "@snort/shared";
+import { useHead } from "../ssr";
 
 export default function LoginPage() {
   const [key, setKey] = useState("");
   const navigate = useNavigate();
+  useHead({ title: "Login", noindex: true });
 
   return (
     <>
@@ -34,7 +36,7 @@ export default function LoginPage() {
             Login
           </Button>
         </div>
-        {window.nostr && (
+        {typeof window !== "undefined" && window.nostr && (
           <div className="flex flex-col gap-4">
             Browser Extension:
             <Button

@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { Categories, Category } from "../const";
+import { useHead } from "../ssr";
 
 export function CategoriesPage() {
+  useHead({ title: "Categories", description: "Browse torrents on Nostr by category", path: "/categories" });
   // Recursively render a category and all its subcategories
   const renderCategory = (category: Category, parentPath: string[] = []): React.ReactNode[] => {
     const categoryPath = [...parentPath, category.tag];

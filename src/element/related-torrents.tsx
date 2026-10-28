@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { NostrTorrent } from "../nostr-torrent";
 import { RequestBuilder } from "@snort/system";
 import { SSRKeepAlive, TorrentKind } from "../const";
-import { useRequestBuilder } from "@snort/system-react";
+import { useRequestBuilder } from "../hooks/nostr";
 import { TorrentList } from "./torrent-list";
 
 export default function RelatedTorrents({ torrent }: { torrent: NostrTorrent }) {

@@ -1,8 +1,8 @@
 import { unwrap } from "@snort/shared";
-import { RequestBuilder, TaggedNostrEvent, parseNostrLink } from "@snort/system";
-import { useRequestBuilder, useUserProfile } from "@snort/system-react";
+import { NostrLink, RequestBuilder, TaggedNostrEvent, tryParseNostrLink } from "@snort/system";
+import { useRequestBuilder, useUserProfile } from "../hooks/nostr";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { FormatBytes, SSRKeepAlive, TorrentKind } from "../const";
+import { FormatBytes, IsSSR, SSRKeepAlive, TorrentKind, formatDateTime } from "../const";
 import { ProfileImage } from "../element/profile-image";
 import { useLogin } from "../login";
 import { Button } from "../element/button";
@@ -17,23 +17,34 @@ import { TorrentTagElement } from "../element/torrent-tag";
 import RelatedTorrents from "../element/related-torrents";
 import TorrentFileList from "../element/file-tree";
 import { Markdown } from "../element/markdown";
+import { NotFoundPage } from "./not-found";
+import { setStatus, useHead } from "../ssr";
 
 export function TorrentPage() {
   const location = useLocation();
   const { id } = useParams();
+  const link = tryParseNostrLink(unwrap(id));
   const evState = location.state && "kind" in location.state ? (location.state as TaggedNostrEvent) : undefined;
 
   const rb = new RequestBuilder("torrent:event").withOptions({ keepAlive: SSRKeepAlive });
   if (!evState) {
     rb.withFilter()
       .kinds([TorrentKind])
-      .link(parseNostrLink(unwrap(id)));
+      .link(link ?? NostrLink.profile("0".repeat(64)));
   }
 
   const evNew = useRequestBuilder(rb);
 
   const ev = evState ?? evNew?.at(0);
-  if (!ev) return;
+  if (!link && !evState) {
+    setStatus(404);
+    return <NotFoundPage />;
+  }
+  if (!ev) {
+    if (!IsSSR) return;
+    setStatus(404);
+    return <NotFoundPage />;
+  }
   return <TorrentDetail item={ev} />;
 }
 
@@ -42,6 +53,13 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   const navigate = useNavigate();
   const profile = useUserProfile(item.pubkey);
   const torrent = NostrTorrent.fromEvent(item);
+  useHead({
+    title: torrent.title,
+    description: `${FormatBytes(torrent.totalSize)} torrent, ${torrent.files.length} files. ${item.content}`.slice(0, 200),
+    path: `/e/${NostrLink.fromEvent(item).encode()}`,
+    type: "article",
+    published: new Date(torrent.publishedAt * 1000).toISOString(),
+  });
   const [sendZap, setShowZap] = useState(false);
   const [expandDescription, setExpandDescription] = useState(false);
 
@@ -58,7 +76,7 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
       <div className="bg-neutral-900 p-4 rounded-lg flex flex-row">
         <div className="flex flex-col gap-2 flex-grow">
           <div>Size: {FormatBytes(torrent.totalSize)}</div>
-          <div>Uploaded: {new Date(torrent.publishedAt * 1000).toLocaleString()}</div>
+          <div>Uploaded: {formatDateTime(torrent.publishedAt)}</div>
           <div className="flex items-center gap-2">
             Tags:{" "}
             <div className="flex gap-2 items-center">

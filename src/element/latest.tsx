@@ -1,6 +1,6 @@
 import { RequestBuilder } from "@snort/system";
 import { SSRKeepAlive, TorrentKind } from "../const";
-import { useRequestBuilder } from "@snort/system-react";
+import { useRequestBuilder } from "../hooks/nostr";
 import { TorrentList } from "./torrent-list";
 
 export function LatestTorrents({ author }: { author?: string }) {

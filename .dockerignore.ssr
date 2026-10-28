@@ -1,6 +1,4 @@
 dist/
 node_modules/
+server/target/
 .git/
-.yarn/
-.bun/
-.vscode/

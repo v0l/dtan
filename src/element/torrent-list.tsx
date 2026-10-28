@@ -1,6 +1,6 @@
 import "./torrent-list.css";
 import { NostrLink, TaggedNostrEvent } from "@snort/system";
-import { FormatBytes } from "../const";
+import { FormatBytes, formatDate } from "../const";
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { NostrTorrent } from "../nostr-torrent";
@@ -164,7 +164,7 @@ function TorrentTableEntry({ item, currentInfoHash }: { item: TaggedNostrEvent; 
           </Link>
         )}
       </td>
-      <td className="text-neutral-300">{new Date(torrent.publishedAt * 1000).toLocaleDateString()}</td>
+      <td className="text-neutral-300">{formatDate(torrent.publishedAt)}</td>
       <td>
         <div className="flex items-center gap-2">
           <Link to={torrent.magnetLink} title="Magnet Link">

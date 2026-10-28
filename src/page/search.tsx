@@ -1,16 +1,23 @@
 import { RequestBuilder } from "@snort/system";
-import { useRequestBuilder } from "@snort/system-react";
+import { useRequestBuilder } from "../hooks/nostr";
 import { SSRKeepAlive, TorrentKind } from "../const";
 import { TorrentList } from "../element/torrent-list";
 import { useRelays } from "../relays";
 import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import useSearch from "../hooks/search";
+import { useHead } from "../ssr";
 
 export function SearchPage() {
   const { term, tags, labels } = useSearch();
   const { relays } = useRelays();
   const location = useLocation();
+  useHead({
+    title: term ? `Search: ${term}` : tags.length > 0 ? `Torrents tagged ${tags.join(", ")}` : "Search",
+    description: "Torrents on Nostr",
+    path: `/search${location.pathname.replace(/^\/search/, "")}${location.search}`,
+    noindex: term !== undefined,
+  });
 
   const rb = useMemo(() => {
     const q = location.search;
