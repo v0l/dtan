@@ -132,8 +132,8 @@ async fn sitemap(State(app): State<Shared>, headers: HeaderMap) -> Response {
         (format!("{origin}/relays"), None, "monthly", "0.2"),
     ];
     if let Some(r) = &app.renderer {
-        for tag in r.categories().await.unwrap_or_default() {
-            urls.push((format!("{origin}/search?tags={tag}"), None, "daily", "0.5"));
+        for path in r.categories().await.unwrap_or_default() {
+            urls.push((format!("{origin}{path}"), None, "daily", "0.5"));
         }
     }
     let newest = app.mirror.query(&[json!({"kinds": [TORRENT], "limit": SITEMAP_TORRENTS})]).await;
@@ -278,6 +278,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn category_paths_render_their_torrents_and_unknown_ones_are_404() {
+        let Some(app) = app(true) else { return };
+        let hd = torrent(1, 1_700_000_000, "Some HD Film", vec![vec!["t", "video"], vec!["i", "tcat:video,movie,hd"]]);
+        app.mirror.database.save_event(&hd).await.unwrap();
+        let (status, body) = get_page(app.clone(), "/video/movie/hd").await;
+        assert_eq!(status, 200);
+        assert!(body.contains("<title>Video &gt; Movies &gt; HD Movies | DTAN.XYZ</title>"));
+        assert!(body.contains("Some HD Film"));
+        assert!(body.contains("rel=\"canonical\" href=\"https://dtan.xyz/video/movie/hd\""));
+        let (status, top) = get_page(app.clone(), "/video").await;
+        assert_eq!(status, 200);
+        assert!(top.contains("Some HD Film"));
+        assert_eq!(get_page(app.clone(), "/video/nonsense").await.0, 404);
+        assert_eq!(get_page(app, "/movie").await.0, 404);
+    }
+
+    #[tokio::test]
     async fn the_sitemap_lists_stored_torrents() {
         let Some(app) = app(true) else { return };
         let t = torrent(1, 1_700_000_000, "x", vec![]);
@@ -285,6 +302,7 @@ mod tests {
         let (status, xml) = get_page(app, "/sitemap.xml").await;
         assert_eq!(status, 200);
         assert!(xml.contains("<loc>https://dtan.xyz/categories</loc>"));
+        assert!(xml.contains("<loc>https://dtan.xyz/video/movie/4k</loc>"));
         assert!(xml.contains(&format!("/e/{}", link(&t))));
         assert!(xml.contains("<lastmod>2023-11-14T22:13:20Z</lastmod>"));
     }

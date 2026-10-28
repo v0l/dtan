@@ -6,7 +6,7 @@ import type { SystemInterface } from "@snort/system";
 import { RoutesView } from "./routes-view";
 import { App } from "./app";
 import { beginSsr, endSsr } from "./ssr";
-import { Categories, Category } from "./const";
+import { allCategoryPaths, categoryUrl } from "./const";
 
 const socialGraph = {
   getFollowDistance: () => 1000,
@@ -50,11 +50,5 @@ export function render(input: RenderInput) {
   JSON.stringify(render(JSON.parse(json) as RenderInput));
 
 (globalThis as Record<string, unknown>).ssrCategories = (): string => {
-  const tags: string[] = [];
-  const walk = (c: Category) => {
-    tags.push(c.tag);
-    c.sub_category?.forEach(walk);
-  };
-  Categories.forEach(walk);
-  return JSON.stringify(tags);
+  return JSON.stringify(allCategoryPaths().map(categoryUrl));
 };

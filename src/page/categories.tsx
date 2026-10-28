@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Categories, Category } from "../const";
+import { Categories, Category, categoryUrl } from "../const";
 import { useHead } from "../ssr";
 
 export function CategoriesPage() {
@@ -14,7 +14,7 @@ export function CategoriesPage() {
     results.push(
       <Link
         key={tcatString}
-        to={`/search?i=tcat:${tcatString}`}
+        to={categoryUrl(categoryPath)}
         className="text-blue-400 hover:text-blue-300 hover:underline"
       >
         {category.name}
@@ -54,7 +54,7 @@ export function CategoriesPage() {
             <dl key={category.tag}>
               <dt className="mb-2">
                 <Link
-                  to={`/search?tags=${category.tag}`}
+                  to={categoryUrl([category.tag])}
                   className="text-lg font-bold text-blue-400 hover:text-blue-300 hover:underline"
                 >
                   {category.name}
@@ -70,7 +70,7 @@ export function CategoriesPage() {
                   ))
                 ) : (
                   <Link
-                    to={`/search?tags=${category.tag}`}
+                    to={categoryUrl([category.tag])}
                     className="text-blue-400 hover:text-blue-300 hover:underline"
                   >
                     Browse {category.name}
@@ -87,7 +87,7 @@ export function CategoriesPage() {
             <dl key={category.tag}>
               <dt className="mb-2">
                 <Link
-                  to={`/search?tags=${category.tag}`}
+                  to={categoryUrl([category.tag])}
                   className="text-lg font-bold text-blue-400 hover:text-blue-300 hover:underline"
                 >
                   {category.name}
@@ -103,7 +103,7 @@ export function CategoriesPage() {
                   ))
                 ) : (
                   <Link
-                    to={`/search?tags=${category.tag}`}
+                    to={categoryUrl([category.tag])}
                     className="text-blue-400 hover:text-blue-300 hover:underline"
                   >
                     Browse {category.name}

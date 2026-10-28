@@ -1,6 +1,6 @@
 import "./torrent-list.css";
 import { NostrLink, TaggedNostrEvent } from "@snort/system";
-import { FormatBytes, formatDate } from "../const";
+import { FormatBytes, categoryUrl, formatDate } from "../const";
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { NostrTorrent } from "../nostr-torrent";
@@ -125,12 +125,11 @@ function TagList({ torrent }: { torrent: NostrTorrent }) {
 }
 
 function TagListEntry({ tags, startIndex, tag }: { tags: string[]; startIndex: number; tag: string }) {
-  const tagUrl = encodeURIComponent(tags.slice(0, startIndex + 1).join(","));
-  const isTCat = tags.length === startIndex + 1;
+  const path = tags.slice(0, startIndex + 1);
 
   return (
     <>
-      <Link to={`/search/?${!isTCat ? `tags=${tagUrl}` : `i=tcat:${tagUrl}`}`}>{tag}</Link>
+      <Link to={categoryUrl(path)}>{tag}</Link>
       {tags.length !== startIndex + 1 && " > "}
     </>
   );

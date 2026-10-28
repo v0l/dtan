@@ -10,7 +10,6 @@ import { useHead } from "../ssr";
 
 export function SearchPage() {
   const { term, tags, labels } = useSearch();
-  const { relays } = useRelays();
   const location = useLocation();
   useHead({
     title: term ? `Search: ${term}` : tags.length > 0 ? `Torrents tagged ${tags.join(", ")}` : "Search",
@@ -19,6 +18,17 @@ export function SearchPage() {
     noindex: term !== undefined,
   });
 
+  return (
+    <div className="flex flex-col gap-4">
+      <h2>Search Results</h2>
+      <TorrentResults term={term} tags={tags} labels={labels} />
+    </div>
+  );
+}
+
+export function TorrentResults({ term, tags, labels }: { term?: string; tags: string[]; labels: string[] }) {
+  const { relays } = useRelays();
+  const location = useLocation();
   const rb = useMemo(() => {
     const q = location.search;
     const rb = new RequestBuilder(`search:${q}+${term}`).withOptions({ keepAlive: SSRKeepAlive });
@@ -43,10 +53,5 @@ export function SearchPage() {
 
   const data = useRequestBuilder(rb);
 
-  return (
-    <div className="flex flex-col gap-4">
-      <h2>Search Results</h2>
-      <TorrentList items={data} />
-    </div>
-  );
+  return <TorrentList items={data} />;
 }

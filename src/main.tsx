@@ -9,6 +9,8 @@ import { RelaysPage } from "./page/relays";
 import LoginPage from "./page/login";
 import { CategoriesPage } from "./page/categories";
 import { NotFoundPage } from "./page/not-found";
+import { CategoryPage } from "./page/category";
+import { Categories } from "./const";
 
 export const routes = [
   {
@@ -38,6 +40,7 @@ export const routes = [
         path: "/categories/:tcat?",
         element: <CategoriesPage />,
       },
+      ...Categories.map((c) => ({ path: `/${c.tag}/*`, element: <CategoryPage /> })),
       {
         path: "/relays",
         element: <RelaysPage />,

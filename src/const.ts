@@ -39,6 +39,29 @@ export interface Category {
   sub_category?: Array<Category>;
 }
 
+export function categoryUrl(path: Array<string>) {
+  return `/${path.map(encodeURIComponent).join("/")}`;
+}
+
+export function findCategory(path: Array<string>): Array<Category> | undefined {
+  const found: Array<Category> = [];
+  let level: Array<Category> | undefined = Categories;
+  for (const tag of path) {
+    const next: Category | undefined = level?.find((c) => c.tag === tag);
+    if (!next) return undefined;
+    found.push(next);
+    level = next.sub_category;
+  }
+  return found.length > 0 ? found : undefined;
+}
+
+export function allCategoryPaths(level: Array<Category> = Categories, parent: Array<string> = []): Array<Array<string>> {
+  return level.flatMap((c) => {
+    const path = [...parent, c.tag];
+    return [path, ...allCategoryPaths(c.sub_category ?? [], path)];
+  });
+}
+
 export const Categories = [
   {
     name: "Video",
