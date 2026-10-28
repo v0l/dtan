@@ -98,6 +98,10 @@ impl Mirror {
         out
     }
 
+    pub async fn count_kind(&self, kind: u16) -> usize {
+        self.database.count(Filter::new().kind(Kind::from(kind))).await.unwrap_or(0)
+    }
+
     pub async fn len(&self) -> usize {
         self.database.count(Filter::new()).await.unwrap_or(0)
     }

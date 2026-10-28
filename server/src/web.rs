@@ -1,6 +1,6 @@
 use crate::mirror::{Mirror, TORRENT};
 use crate::ssr::{assemble, escape_html, head_tags, Renderer};
-use axum::extract::{Request, State};
+use axum::extract::{Path, Request, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -14,7 +14,7 @@ use std::time::Duration;
 use tower_http::compression::CompressionLayer;
 use tower_http::services::ServeDir;
 
-const SITEMAP_TORRENTS: usize = 2000;
+const SITEMAP_CHUNK: usize = 10_000;
 const ON_DEMAND_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub struct App {
@@ -29,7 +29,9 @@ pub type Shared = Arc<App>;
 pub fn router(app: Shared) -> Router {
     let assets = ServeDir::new(app.dist.join("client")).append_index_html_on_directories(false);
     Router::new()
-        .route("/sitemap.xml", get(sitemap))
+        .route("/sitemap.xml", get(sitemap_index))
+        .route("/sitemap-pages.xml", get(sitemap_pages))
+        .route("/sitemap-torrents-{file}", get(sitemap_torrents))
         .fallback_service(assets.fallback(get(page).with_state(app.clone())))
         .layer(axum::middleware::map_response(cache_assets))
         .layer(CompressionLayer::new())
@@ -52,7 +54,8 @@ fn origin(app: &App, headers: &HeaderMap) -> String {
         return u.trim_end_matches('/').to_string();
     }
     let host = headers.get(header::HOST).and_then(|h| h.to_str().ok()).unwrap_or("localhost");
-    format!("http://{host}")
+    let scheme = headers.get("x-forwarded-proto").and_then(|h| h.to_str().ok()).filter(|p| *p == "https").unwrap_or("http");
+    format!("{scheme}://{host}")
 }
 
 fn shell(app: &App) -> Option<String> {
@@ -124,9 +127,42 @@ pub async fn page_for(app: Shared, headers: HeaderMap, url: String) -> Response 
     html(out.status, assemble(&shell_html, &out.html, &tags, &out.data))
 }
 
-async fn sitemap(State(app): State<Shared>, headers: HeaderMap) -> Response {
+type Entry = (String, Option<String>, &'static str, &'static str);
+
+fn urlset(entries: &[Entry]) -> Response {
+    let body: String = entries
+        .iter()
+        .map(|(loc, lastmod, freq, prio)| {
+            let lm = lastmod.as_ref().map(|l| format!("<lastmod>{l}</lastmod>")).unwrap_or_default();
+            format!("  <url><loc>{}</loc>{lm}<changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n", escape_html(loc))
+        })
+        .collect();
+    xml_response(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{body}</urlset>\n"))
+}
+
+fn xml_response(xml: String) -> Response {
+    ([(header::CONTENT_TYPE, "application/xml; charset=utf-8"), (header::CACHE_CONTROL, "public, max-age=300")], xml).into_response()
+}
+
+async fn torrents_oldest_first(app: &App) -> Vec<Event> {
+    let mut all = app.mirror.query(&[json!({"kinds": [TORRENT]})]).await;
+    all.reverse();
+    all
+}
+
+async fn sitemap_index(State(app): State<Shared>, headers: HeaderMap) -> Response {
     let origin = origin(&app, &headers);
-    let mut urls: Vec<(String, Option<String>, &str, &str)> = vec![
+    let torrents = app.mirror.count_kind(TORRENT).await;
+    let files = torrents.div_ceil(SITEMAP_CHUNK);
+    let mut locs = vec![format!("{origin}/sitemap-pages.xml")];
+    locs.extend((1..=files).map(|n| format!("{origin}/sitemap-torrents-{n}.xml")));
+    let body: String = locs.iter().map(|l| format!("  <sitemap><loc>{}</loc></sitemap>\n", escape_html(l))).collect();
+    xml_response(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{body}</sitemapindex>\n"))
+}
+
+async fn sitemap_pages(State(app): State<Shared>, headers: HeaderMap) -> Response {
+    let origin = origin(&app, &headers);
+    let mut urls: Vec<Entry> = vec![
         (format!("{origin}/"), None, "hourly", "1.0"),
         (format!("{origin}/categories"), None, "weekly", "0.6"),
         (format!("{origin}/relays"), None, "monthly", "0.2"),
@@ -136,22 +172,27 @@ async fn sitemap(State(app): State<Shared>, headers: HeaderMap) -> Response {
             urls.push((format!("{origin}{path}"), None, "daily", "0.5"));
         }
     }
-    let newest = app.mirror.query(&[json!({"kinds": [TORRENT], "limit": SITEMAP_TORRENTS})]).await;
-    for ev in newest {
-        if let Ok(link) = nevent(&ev).to_bech32() {
-            let lastmod = chrono_iso(ev.created_at.as_secs() as i64);
-            urls.push((format!("{origin}/e/{link}"), Some(lastmod), "monthly", "0.7"));
-        }
+    urlset(&urls)
+}
+
+async fn sitemap_torrents(State(app): State<Shared>, headers: HeaderMap, Path(file): Path<String>) -> Response {
+    let Some(n) = file.strip_suffix(".xml").and_then(|n| n.parse::<usize>().ok()).filter(|n| *n >= 1) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let origin = origin(&app, &headers);
+    let all = torrents_oldest_first(&app).await;
+    let chunk: Vec<Event> = all.into_iter().skip((n - 1) * SITEMAP_CHUNK).take(SITEMAP_CHUNK).collect();
+    if chunk.is_empty() {
+        return StatusCode::NOT_FOUND.into_response();
     }
-    let body: String = urls
+    let entries: Vec<Entry> = chunk
         .iter()
-        .map(|(loc, lastmod, freq, prio)| {
-            let lm = lastmod.as_ref().map(|l| format!("<lastmod>{l}</lastmod>")).unwrap_or_default();
-            format!("  <url><loc>{}</loc>{lm}<changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n", escape_html(loc))
+        .filter_map(|ev| {
+            let link = nevent(ev).to_bech32().ok()?;
+            Some((format!("{origin}/e/{link}"), Some(chrono_iso(ev.created_at.as_secs() as i64)), "monthly", "0.7"))
         })
         .collect();
-    let xml = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{body}</urlset>\n");
-    ([(header::CONTENT_TYPE, "application/xml; charset=utf-8"), (header::CACHE_CONTROL, "public, max-age=300")], xml).into_response()
+    urlset(&entries)
 }
 
 pub fn chrono_iso(secs: i64) -> String {
@@ -295,16 +336,39 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_sitemap_lists_stored_torrents() {
+    async fn the_sitemap_is_an_index_of_a_pages_file_and_chunked_torrent_files() {
         let Some(app) = app(true) else { return };
         let t = torrent(1, 1_700_000_000, "x", vec![]);
         app.mirror.database.save_event(&t).await.unwrap();
-        let (status, xml) = get_page(app, "/sitemap.xml").await;
+        let (status, index) = get_page(app.clone(), "/sitemap.xml").await;
         assert_eq!(status, 200);
-        assert!(xml.contains("<loc>https://dtan.xyz/categories</loc>"));
-        assert!(xml.contains("<loc>https://dtan.xyz/video/movie/4k</loc>"));
-        assert!(xml.contains(&format!("/e/{}", link(&t))));
-        assert!(xml.contains("<lastmod>2023-11-14T22:13:20Z</lastmod>"));
+        assert!(index.contains("<sitemapindex"));
+        assert!(index.contains("<loc>https://dtan.xyz/sitemap-pages.xml</loc>"));
+        assert!(index.contains("<loc>https://dtan.xyz/sitemap-torrents-1.xml</loc>"));
+        assert!(!index.contains("sitemap-torrents-2.xml"));
+
+        let (_, pages) = get_page(app.clone(), "/sitemap-pages.xml").await;
+        assert!(pages.contains("<loc>https://dtan.xyz/categories</loc>"));
+        assert!(pages.contains("<loc>https://dtan.xyz/video/movie/4k</loc>"));
+
+        let (status, torrents) = get_page(app.clone(), "/sitemap-torrents-1.xml").await;
+        assert_eq!(status, 200);
+        assert!(torrents.contains(&format!("/e/{}", link(&t))));
+        assert!(torrents.contains("<lastmod>2023-11-14T22:13:20Z</lastmod>"));
+        assert_eq!(get_page(app.clone(), "/sitemap-torrents-2.xml").await.0, 404);
+        assert_eq!(get_page(app, "/sitemap-torrents-abc.xml").await.0, 404);
+    }
+
+    #[tokio::test]
+    async fn the_origin_follows_x_forwarded_proto_when_no_public_url_is_set() {
+        let Some(app) = app(true) else { return };
+        let app = Arc::new(App { mirror: app.mirror.clone(), renderer: None, dist: app.dist.clone(), public_url: None });
+        let res = router(app)
+            .oneshot(Request::get("/sitemap.xml").header("host", "dtan.xyz").header("x-forwarded-proto", "https").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let body = String::from_utf8(to_bytes(res.into_body(), usize::MAX).await.unwrap().to_vec()).unwrap();
+        assert!(body.contains("<loc>https://dtan.xyz/sitemap-pages.xml</loc>"));
     }
 
     #[tokio::test]
