@@ -5,17 +5,7 @@ RUN bun install
 COPY . .
 RUN bun run build
 
-FROM rust:alpine AS server
-RUN apk add --no-cache musl-dev build-base
-WORKDIR /app
-COPY server/Cargo.toml server/Cargo.lock ./
-COPY server/src ./src
-RUN cargo build --release
-
-FROM alpine:3.20
-WORKDIR /app
-COPY --from=server /app/target/release/dtan-server /app/dtan-server
+FROM voidic/nostr-ssr:latest
 COPY --from=web /app/dist /app/dist
-ENV DIST=/app/dist BIND=0.0.0.0:3000
-EXPOSE 3000
-CMD ["/app/dtan-server"]
+COPY ssr.json /app/ssr.json
+ENV CONFIG=/app/ssr.json

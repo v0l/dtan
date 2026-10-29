@@ -1,0 +1,15 @@
+{
+  "site_name": "DTAN.XYZ",
+  "description": "Torrents on Nostr",
+  "default_image": "/banner.jpg",
+  "relays": ["wss://nos.lol", "wss://relay.damus.io", "wss://relay.primal.net", "wss://relay.snort.social", "wss://relay.dtan.xyz"],
+  "kinds": [2003, 1111, 9735],
+  "max_events": 200000,
+  "backfill": [
+    {"filter": {"kinds": [2003]}, "max": 5000, "priority": true},
+    {"filter": {"kinds": [1111], "#K": ["2003"]}, "max": 5000, "priority": true}
+  ],
+  "sitemap": [{"name": "torrents", "filter": {"kinds": [2003]}, "prefix": "/e/", "encoding": "nevent", "chunk": 40000}],
+  "static_paths": ["/", "/categories", "/relays"],
+  "warm": ["/"]
+}
