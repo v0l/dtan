@@ -78,15 +78,17 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
       <div className="bg-neutral-900 p-4 rounded-lg flex flex-row">
         <div className="flex flex-col gap-2 flex-grow">
           <div>Size: {FormatBytes(torrent.totalSize)}</div>
-          <div className="flex items-center gap-1">
-            <div>Swarm:</div>
+          <div>
             {swarm.state === "ready" ? (
-              <div className="flex items-center gap-2 font-mono text-sm">
-                <span className="text-green-400" title="Seeds">S:{swarm.seeds}</span>
-                <span className="text-yellow-400" title="Leeches">L:{swarm.leeches}</span>
-              </div>
+              <>
+                Seeds: <span className="text-green-400">{swarm.seeds}</span> Leeches:{" "}
+                <span className="text-yellow-400">{swarm.leeches}</span>
+              </>
             ) : (
-              <div className="text-neutral-500 text-sm">{swarm.state === "loading" ? "querying trackers..." : "unavailable"}</div>
+              <>
+                Swarm:{" "}
+                <span className="text-neutral-500">{swarm.state === "loading" ? "querying trackers..." : "unavailable"}</span>
+              </>
             )}
           </div>
           <div>Uploaded: {formatDateTime(torrent.publishedAt)}</div>
