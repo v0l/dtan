@@ -479,11 +479,11 @@ dependencies = [
  "axum",
  "nostr-ssr",
  "reqwest",
- "rustls",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -1185,7 +1185,6 @@ dependencies = [
 [[package]]
 name = "nostr-ssr"
 version = "0.1.0"
-source = "git+https://github.com/v0l/nostr-ssr.git?branch=main#5dbd927aae20a380ad5b5e394f70ba347e90e1c1"
 dependencies = [
  "anyhow",
  "axum",

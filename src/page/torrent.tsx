@@ -19,7 +19,7 @@ import TorrentFileList from "../element/file-tree";
 import { Markdown } from "../element/markdown";
 import { useSwarmStats } from "../hooks/swarm";
 import { NotFoundPage } from "./not-found";
-import { renderNow, setStatus, useHead } from "../ssr";
+import { setStatus, useHead } from "../ssr";
 
 export function TorrentPage() {
   const location = useLocation();
@@ -80,14 +80,13 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
           <div>Size: {FormatBytes(torrent.totalSize)}</div>
           <div className="flex items-center gap-1">
             <div>Swarm:</div>
-            {swarm ? (
+            {swarm.state === "ready" ? (
               <div className="flex items-center gap-2 font-mono text-sm">
                 <span className="text-green-400" title="Seeds">S:{swarm.seeds}</span>
                 <span className="text-yellow-400" title="Leeches">L:{swarm.leeches}</span>
-                <span className="text-neutral-500 text-xs">{Math.max(0, Math.round((renderNow() - swarm.at) / 60))}m</span>
               </div>
             ) : (
-              <div className="text-neutral-500 text-sm">querying trackers...</div>
+              <div className="text-neutral-500 text-sm">{swarm.state === "loading" ? "querying trackers..." : "unavailable"}</div>
             )}
           </div>
           <div>Uploaded: {formatDateTime(torrent.publishedAt)}</div>
