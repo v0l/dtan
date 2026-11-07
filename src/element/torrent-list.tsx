@@ -68,7 +68,8 @@ export function TorrentList({
             <th>Uploaded</th>
             <th></th>
             <th>Size</th>
-            <th title="Seeds / Leeches">S/L</th>
+            <th title="Seeds">S</th>
+            <th title="Leeches">L</th>
             <th className="rounded-tr-lg">From</th>
           </tr>
         </thead>
@@ -192,17 +193,8 @@ function TorrentTableEntry({
         </div>
       </td>
       <td className="whitespace-nowrap text-right text-neutral-300">{FormatBytes(torrent.totalSize)}</td>
-      <td className="whitespace-nowrap text-center font-mono">
-        {stats ? (
-          <>
-            <span className="text-green-400">{stats.seeds}</span>
-            <span className="text-neutral-500">/</span>
-            <span className="text-yellow-400">{stats.leeches}</span>
-          </>
-        ) : (
-          <span className="text-neutral-600">-</span>
-        )}
-      </td>
+      <td className="swarm-cell text-green-400">{stats ? stats.seeds : "-"}</td>
+      <td className="swarm-cell text-yellow-400">{stats ? stats.leeches : "-"}</td>
       <td className="text-indigo-300">
         <Link to={`/p/${NostrLink.publicKey(item.pubkey).encode()}`}>
           <ProfileImage pubkey={item.pubkey} size={22} />

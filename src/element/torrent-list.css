@@ -51,16 +51,24 @@
   width: 90px;
 }
 
-/* Seeds / Leeches */
+/* Seeds */
 .torrent-list th:nth-child(7),
-.torrent-list td:nth-child(7) {
-  width: 80px;
-  text-align: center;
+.torrent-list td:nth-child(7),
+/* Leeches */
+.torrent-list th:nth-child(8),
+.torrent-list td:nth-child(8) {
+  width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.torrent-list td.swarm-cell:not(:empty) {
+  white-space: nowrap;
 }
 
 /* From */
-.torrent-list th:nth-child(8),
-.torrent-list td:nth-child(8) {
+.torrent-list th:nth-child(9),
+.torrent-list td:nth-child(9) {
   width: 40px;
   text-align: center;
 }
