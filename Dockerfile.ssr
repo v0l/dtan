@@ -5,16 +5,17 @@ RUN bun install
 COPY . .
 RUN bun run build
 
-FROM rust:slim AS rust
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+FROM rust:alpine AS rust
+RUN apk add --no-cache musl-dev build-base
 WORKDIR /app
 COPY server/Cargo.toml server/Cargo.lock ./
 COPY server/src ./src
 RUN cargo build --release
 
 FROM voidic/nostr-ssr:latest
+RUN apk add --no-cache ca-certificates
 COPY --from=web /app/dist /app/dist
 COPY --from=rust /app/target/release/dtan-ssr /app/dtan-ssr
 COPY ssr.json /app/ssr.json
-ENV CONFIG=/app/ssr.json
+ENV CONFIG=/app/ssr.json BIND=0.0.0.0:3000 DIST=/app/dist
 CMD ["/app/dtan-ssr"]
