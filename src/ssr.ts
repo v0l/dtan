@@ -32,6 +32,7 @@ export interface SsrState extends SsrData {
 declare global {
   function relayQuery(filters: string): string;
   function swarmStats(input: string): string;
+  function swarmStatsBatch(input: string): string;
 }
 
 let current: SsrState | undefined;
@@ -53,8 +54,8 @@ export function setStatus(code: number) {
   if (current) current.status = Math.max(current.status, code);
 }
 
-export function setSwarm(infoHash: string, swarm: SwarmStats) {
-  if (current) current.swarm = { ...current.swarm, [infoHash]: swarm };
+export function setSwarm(entries: Record<string, SwarmStats>) {
+  if (current) current.swarm = { ...current.swarm, ...entries };
 }
 
 export function useHead(head: Head) {

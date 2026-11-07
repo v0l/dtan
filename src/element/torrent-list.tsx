@@ -10,6 +10,8 @@ import { Button } from "./button";
 import useWoT from "../wot";
 import DiamondIcon from "./icon/diamond";
 import { ProfileImage } from "./profile-image";
+import { useSwarmBatch } from "../hooks/swarm";
+import { SwarmStats } from "../ssr";
 
 export function TorrentList({
   items,
@@ -40,6 +42,8 @@ export function TorrentList({
   const totalPages = Math.ceil(filteredTorrents.length / pageSize);
   const startIndex = pageNum * pageSize;
   const endIndex = Math.min(startIndex + pageSize, filteredTorrents.length);
+  const pageItems = filteredTorrents.slice(startIndex, startIndex + pageSize);
+  const swarm = useSwarmBatch(pageItems.map((a) => NostrTorrent.fromEvent(a).infoHash));
 
   return (
     <>
@@ -64,12 +68,13 @@ export function TorrentList({
             <th>Uploaded</th>
             <th></th>
             <th>Size</th>
+            <th title="Seeds / Leeches">S/L</th>
             <th className="rounded-tr-lg">From</th>
           </tr>
         </thead>
         <tbody>
-          {filteredTorrents.slice(pageNum * pageSize, pageNum * pageSize + pageSize).map((a) => (
-            <TorrentTableEntry item={a} key={a.id} currentInfoHash={currentInfoHash} />
+          {pageItems.map((a) => (
+            <TorrentTableEntry item={a} key={a.id} currentInfoHash={currentInfoHash} swarm={swarm} />
           ))}
         </tbody>
       </table>
@@ -135,8 +140,17 @@ function TagListEntry({ tags, startIndex, tag }: { tags: string[]; startIndex: n
   );
 }
 
-function TorrentTableEntry({ item, currentInfoHash }: { item: TaggedNostrEvent; currentInfoHash?: string }) {
+function TorrentTableEntry({
+  item,
+  currentInfoHash,
+  swarm,
+}: {
+  item: TaggedNostrEvent;
+  currentInfoHash?: string;
+  swarm: Record<string, SwarmStats>;
+}) {
   const torrent = NostrTorrent.fromEvent(item);
+  const stats = swarm[torrent.infoHash.toLowerCase()];
   const isDuplicate = currentInfoHash && torrent.infoHash === currentInfoHash;
 
   return (
@@ -178,6 +192,17 @@ function TorrentTableEntry({ item, currentInfoHash }: { item: TaggedNostrEvent; 
         </div>
       </td>
       <td className="whitespace-nowrap text-right text-neutral-300">{FormatBytes(torrent.totalSize)}</td>
+      <td className="whitespace-nowrap text-center font-mono">
+        {stats ? (
+          <>
+            <span className="text-green-400">{stats.seeds}</span>
+            <span className="text-neutral-500">/</span>
+            <span className="text-yellow-400">{stats.leeches}</span>
+          </>
+        ) : (
+          <span className="text-neutral-600">-</span>
+        )}
+      </td>
       <td className="text-indigo-300">
         <Link to={`/p/${NostrLink.publicKey(item.pubkey).encode()}`}>
           <ProfileImage pubkey={item.pubkey} size={22} />

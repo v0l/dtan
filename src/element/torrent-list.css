@@ -51,9 +51,16 @@
   width: 90px;
 }
 
-/* From */
+/* Seeds / Leeches */
 .torrent-list th:nth-child(7),
 .torrent-list td:nth-child(7) {
+  width: 80px;
+  text-align: center;
+}
+
+/* From */
+.torrent-list th:nth-child(8),
+.torrent-list td:nth-child(8) {
   width: 40px;
   text-align: center;
 }

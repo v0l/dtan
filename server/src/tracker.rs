@@ -9,6 +9,7 @@ const TIMEOUT: Duration = Duration::from_secs(4);
 const MAX_BODY: u64 = 64 * 1024;
 const UDP_PROTOCOL_ID: u64 = 0x41727101980;
 const MAX_DEPTH: usize = 8;
+const CHUNK: usize = 50;
 
 pub type Counts = (u64, u64);
 
@@ -80,7 +81,7 @@ pub fn normalize(tracker: &str) -> Option<Url> {
     Some(url)
 }
 
-pub fn scrape_url(announce: &Url, info_hash: &[u8; 20]) -> Option<Url> {
+pub fn scrape_url(announce: &Url, info_hashes: &[[u8; 20]]) -> Option<Url> {
     let path = announce.path();
     let (dir, last) = path.rsplit_once('/')?;
     if !last.starts_with("announce") {
@@ -88,21 +89,27 @@ pub fn scrape_url(announce: &Url, info_hash: &[u8; 20]) -> Option<Url> {
     }
     let mut url = announce.clone();
     url.set_path(&format!("{dir}/scrape{}", &last["announce".len()..]));
-    let hash: String = info_hash.iter().map(|b| format!("%{b:02X}")).collect();
+    let hashes: Vec<String> = info_hashes.iter().map(|h| format!("info_hash={}", h.iter().map(|b| format!("%{b:02X}")).collect::<String>())).collect();
+    let hashes = hashes.join("&");
     let query = match announce.query() {
-        Some(q) => format!("{q}&info_hash={hash}"),
-        None => format!("info_hash={hash}"),
+        Some(q) => format!("{q}&{hashes}"),
+        None => hashes,
     };
     url.set_query(Some(&query));
     Some(url)
 }
 
-pub fn scrape(tracker: &str, info_hash: &[u8; 20]) -> Option<Counts> {
-    let url = normalize(tracker)?;
-    match url.scheme() {
-        "udp" => udp_scrape(&url, info_hash),
-        _ => http_scrape(&url, info_hash),
+pub fn scrape_many(tracker: &str, info_hashes: &[[u8; 20]]) -> Vec<Option<Counts>> {
+    let Some(url) = normalize(tracker) else { return vec![None; info_hashes.len()] };
+    let mut out = Vec::with_capacity(info_hashes.len());
+    for chunk in info_hashes.chunks(CHUNK) {
+        let answers = match url.scheme() {
+            "udp" => udp_scrape(&url, chunk),
+            _ => http_scrape(&url, chunk),
+        };
+        out.extend(answers.unwrap_or_else(|| vec![None; chunk.len()]));
     }
+    out
 }
 
 fn literal_ip_is_public(url: &Url) -> bool {
@@ -114,8 +121,8 @@ fn literal_ip_is_public(url: &Url) -> bool {
     }
 }
 
-fn http_scrape(announce: &Url, info_hash: &[u8; 20]) -> Option<Counts> {
-    let url = scrape_url(announce, info_hash)?;
+fn http_scrape(announce: &Url, info_hashes: &[[u8; 20]]) -> Option<Vec<Option<Counts>>> {
+    let url = scrape_url(announce, info_hashes)?;
     if !literal_ip_is_public(&url) {
         return None;
     }
@@ -125,7 +132,7 @@ fn http_scrape(announce: &Url, info_hash: &[u8; 20]) -> Option<Counts> {
     }
     let mut body = Vec::new();
     resp.take(MAX_BODY).read_to_end(&mut body).ok()?;
-    parse_scrape(&body, info_hash)
+    parse_scrape_many(&body, info_hashes)
 }
 
 #[derive(Debug, PartialEq)]
@@ -194,11 +201,24 @@ fn parse_bencode(input: &[u8], depth: usize) -> Option<(Bencode<'_>, &[u8])> {
     }
 }
 
-pub fn parse_scrape(body: &[u8], info_hash: &[u8; 20]) -> Option<Counts> {
+pub fn parse_scrape_many(body: &[u8], info_hashes: &[[u8; 20]]) -> Option<Vec<Option<Counts>>> {
     let (root, _) = parse_bencode(body, 0)?;
     let Bencode::Dict(files) = root.get(b"files")? else { return None };
-    let entry = files.iter().find(|(k, _)| *k == info_hash).map(|(_, v)| v).or_else(|| (files.len() == 1).then(|| &files[0].1))?;
-    Some((entry.get(b"complete")?.int()?, entry.get(b"incomplete")?.int()?))
+    let counts = |entry: &Bencode| Some((entry.get(b"complete")?.int()?, entry.get(b"incomplete")?.int()?));
+    Some(
+        info_hashes
+            .iter()
+            .map(|hash| {
+                let entry = files.iter().find(|(k, _)| *k == hash).map(|(_, v)| v);
+                let only = (info_hashes.len() == 1 && files.len() == 1).then(|| &files[0].1);
+                counts(entry.or(only)?)
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_scrape(body: &[u8], info_hash: &[u8; 20]) -> Option<Counts> {
+    parse_scrape_many(body, &[*info_hash])?.pop()?
 }
 
 fn transaction_id() -> u32 {
@@ -220,30 +240,39 @@ pub fn parse_udp_connect(buf: &[u8], tx: u32) -> Option<u64> {
     Some(u64::from_be_bytes(buf[8..16].try_into().ok()?))
 }
 
-pub fn udp_scrape_request(connection: u64, tx: u32, info_hash: &[u8; 20]) -> [u8; 36] {
-    let mut buf = [0u8; 36];
-    buf[..8].copy_from_slice(&connection.to_be_bytes());
-    buf[8..12].copy_from_slice(&2u32.to_be_bytes());
-    buf[12..16].copy_from_slice(&tx.to_be_bytes());
-    buf[16..].copy_from_slice(info_hash);
+pub fn udp_scrape_request(connection: u64, tx: u32, info_hashes: &[[u8; 20]]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(16 + 20 * info_hashes.len());
+    buf.extend_from_slice(&connection.to_be_bytes());
+    buf.extend_from_slice(&2u32.to_be_bytes());
+    buf.extend_from_slice(&tx.to_be_bytes());
+    for hash in info_hashes {
+        buf.extend_from_slice(hash);
+    }
     buf
 }
 
-pub fn parse_udp_scrape(buf: &[u8], tx: u32) -> Option<Counts> {
-    if buf.len() < 20 || buf[..4] != 2u32.to_be_bytes() || buf[4..8] != tx.to_be_bytes() {
+pub fn parse_udp_scrape(buf: &[u8], tx: u32, count: usize) -> Option<Vec<Option<Counts>>> {
+    if buf.len() < 8 + 12 * count || buf[..4] != 2u32.to_be_bytes() || buf[4..8] != tx.to_be_bytes() {
         return None;
     }
-    let seeders = u32::from_be_bytes(buf[8..12].try_into().ok()?) as u64;
-    let leechers = u32::from_be_bytes(buf[16..20].try_into().ok()?) as u64;
-    Some((seeders, leechers))
+    Some(
+        (0..count)
+            .map(|i| {
+                let at = 8 + 12 * i;
+                let seeders = u32::from_be_bytes(buf[at..at + 4].try_into().ok()?) as u64;
+                let leechers = u32::from_be_bytes(buf[at + 8..at + 12].try_into().ok()?) as u64;
+                Some((seeders, leechers))
+            })
+            .collect(),
+    )
 }
 
-fn udp_scrape(url: &Url, info_hash: &[u8; 20]) -> Option<Counts> {
+fn udp_scrape(url: &Url, info_hashes: &[[u8; 20]]) -> Option<Vec<Option<Counts>>> {
     let addr = (url.host_str()?, url.port()?).to_socket_addrs().ok()?.find(|a| is_public(a.ip()))?;
     let socket = UdpSocket::bind(if addr.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" }).ok()?;
     socket.set_read_timeout(Some(TIMEOUT / 2)).ok()?;
     socket.connect(addr).ok()?;
-    let mut buf = [0u8; 2048];
+    let mut buf = vec![0u8; 8 + 12 * info_hashes.len() + 64];
 
     let tx = transaction_id();
     socket.send(&udp_connect_request(tx)).ok()?;
@@ -251,9 +280,9 @@ fn udp_scrape(url: &Url, info_hash: &[u8; 20]) -> Option<Counts> {
     let connection = parse_udp_connect(&buf[..n], tx)?;
 
     let tx = transaction_id();
-    socket.send(&udp_scrape_request(connection, tx, info_hash)).ok()?;
+    socket.send(&udp_scrape_request(connection, tx, info_hashes)).ok()?;
     let n = socket.recv(&mut buf).ok()?;
-    parse_udp_scrape(&buf[..n], tx)
+    parse_udp_scrape(&buf[..n], tx, info_hashes.len())
 }
 
 #[cfg(test)]
@@ -314,10 +343,28 @@ mod tests {
     #[test]
     fn announce_urls_become_scrape_urls_keeping_passkeys_and_queries() {
         let hash: String = HASH.iter().map(|b| format!("%{b:02X}")).collect();
-        let url = |s: &str| scrape_url(&Url::parse(s).unwrap(), &HASH).map(|u| u.to_string());
+        let url = |s: &str| scrape_url(&Url::parse(s).unwrap(), &[HASH]).map(|u| u.to_string());
         assert_eq!(url("http://nyaa.tracker.wf:7777/announce"), Some(format!("http://nyaa.tracker.wf:7777/scrape?info_hash={hash}")));
         assert_eq!(url("http://t.example/abc123/announce?k=v"), Some(format!("http://t.example/abc123/scrape?k=v&info_hash={hash}")));
         assert_eq!(url("http://t.example/tracker"), None);
+    }
+
+    #[test]
+    fn several_hashes_share_one_scrape_url() {
+        let url = scrape_url(&Url::parse("http://t.example/announce").unwrap(), &[HASH, [9u8; 20]]).unwrap();
+        assert_eq!(url.query().unwrap().matches("info_hash=").count(), 2);
+    }
+
+    #[test]
+    fn a_batched_scrape_answers_each_hash_and_leaves_unknown_ones_empty() {
+        let other = [9u8; 20];
+        let missing = [7u8; 20];
+        let mut body = b"d5:filesd20:".to_vec();
+        body.extend_from_slice(&HASH);
+        body.extend_from_slice(b"d8:completei5e10:incompletei6ee20:");
+        body.extend_from_slice(&other);
+        body.extend_from_slice(b"d8:completei1e10:incompletei2eeee");
+        assert_eq!(parse_scrape_many(&body, &[other, missing, HASH]), Some(vec![Some((1, 2)), None, Some((5, 6))]));
     }
 
     #[test]
@@ -334,26 +381,30 @@ mod tests {
         assert_eq!(parse_udp_connect(&reply, 7), Some(0xdead_beef));
         assert_eq!(parse_udp_connect(&reply, 8), None);
 
-        let req = udp_scrape_request(0xdead_beef, 9, &HASH);
+        let req = udp_scrape_request(0xdead_beef, 9, &[HASH, [1u8; 20]]);
+        assert_eq!(req.len(), 16 + 40);
         assert_eq!(&req[..8], &0xdead_beef_u64.to_be_bytes());
         assert_eq!(&req[8..12], &2u32.to_be_bytes());
         assert_eq!(&req[12..16], &9u32.to_be_bytes());
-        assert_eq!(&req[16..], &HASH);
+        assert_eq!(&req[16..36], &HASH);
 
         let mut scrape = Vec::new();
         scrape.extend_from_slice(&2u32.to_be_bytes());
         scrape.extend_from_slice(&9u32.to_be_bytes());
-        scrape.extend_from_slice(&120u32.to_be_bytes());
-        scrape.extend_from_slice(&5000u32.to_be_bytes());
-        scrape.extend_from_slice(&33u32.to_be_bytes());
-        assert_eq!(parse_udp_scrape(&scrape, 9), Some((120, 33)));
-        assert_eq!(parse_udp_scrape(&scrape, 10), None);
+        for (seeders, completed, leechers) in [(120u32, 5000u32, 33u32), (1, 2, 3)] {
+            for n in [seeders, completed, leechers] {
+                scrape.extend_from_slice(&n.to_be_bytes());
+            }
+        }
+        assert_eq!(parse_udp_scrape(&scrape, 9, 2), Some(vec![Some((120, 33)), Some((1, 3))]));
+        assert_eq!(parse_udp_scrape(&scrape, 9, 3), None);
+        assert_eq!(parse_udp_scrape(&scrape, 10, 2), None);
 
         let mut error = Vec::new();
         error.extend_from_slice(&3u32.to_be_bytes());
         error.extend_from_slice(&9u32.to_be_bytes());
         error.extend_from_slice(b"nope");
-        assert_eq!(parse_udp_scrape(&error, 9), None);
+        assert_eq!(parse_udp_scrape(&error, 9, 1), None);
     }
 
     #[test]
@@ -372,7 +423,7 @@ mod tests {
         listener.set_nonblocking(true).unwrap();
         let port = listener.local_addr().unwrap().port();
         for host in ["127.0.0.1", "localhost", "[::1]"] {
-            assert_eq!(scrape(&format!("http://{host}:{port}/announce"), &HASH), None, "{host}");
+            assert_eq!(scrape_many(&format!("http://{host}:{port}/announce"), &[HASH]), vec![None], "{host}");
         }
         assert!(listener.accept().is_err(), "a connection reached the private listener");
     }

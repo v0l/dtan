@@ -26,7 +26,7 @@ function initialSwarm(infoHash: string, trackers: Array<string>): SwarmStats | u
   try {
     const data: unknown = JSON.parse(swarmStats(JSON.stringify({ info_hash: infoHash, trackers })));
     if (isStats(data)) {
-      setSwarm(infoHash, data);
+      setSwarm({ [infoHash]: data });
       return data;
     }
   } catch {
@@ -59,4 +59,63 @@ export function useSwarmStats(rawInfoHash: string, trackers: Array<string>): Swa
   const stats = current?.stats ?? initial;
   if (stats) return { state: "ready", ...stats };
   return { state: current ? "unavailable" : "loading" };
+}
+
+const MaxBatch = 100;
+
+async function fetchBatch(infoHashes: Array<string>): Promise<Record<string, SwarmStats>> {
+  const query = new URLSearchParams({ info_hash: infoHashes.slice(0, MaxBatch).join(",") });
+  try {
+    const rsp = await fetch(`/api/swarm/batch?${query}`);
+    const data: unknown = rsp.ok ? await rsp.json() : undefined;
+    if (!data || typeof data !== "object") return {};
+    return Object.fromEntries(Object.entries(data).filter(([, v]) => isStats(v))) as Record<string, SwarmStats>;
+  } catch {
+    return {};
+  }
+}
+
+function initialBatch(infoHashes: Array<string>): Record<string, SwarmStats> {
+  if (!infoHashes.length) return {};
+  if (!IsSSR) {
+    const known: Record<string, SwarmStats> = {};
+    for (const hash of infoHashes) {
+      const stats = hydratedSwarm(hash);
+      if (stats) known[hash] = stats;
+    }
+    return known;
+  }
+  try {
+    const data: unknown = JSON.parse(swarmStatsBatch(JSON.stringify({ info_hashes: infoHashes.slice(0, MaxBatch) })));
+    const known = data && typeof data === "object" ? Object.fromEntries(Object.entries(data).filter(([, v]) => isStats(v))) : {};
+    setSwarm(known as Record<string, SwarmStats>);
+    return known as Record<string, SwarmStats>;
+  } catch {
+    return {};
+  }
+}
+
+export function useSwarmBatch(rawInfoHashes: Array<string>): Record<string, SwarmStats> {
+  const infoHashes = [...new Set(rawInfoHashes.filter(Boolean).map((h) => h.toLowerCase()))];
+  const key = infoHashes.join(",");
+  const initial = initialBatch(infoHashes);
+  const [fetched, setFetched] = useState<Record<string, SwarmStats>>({});
+
+  useEffect(() => {
+    const wanted = key.split(",").filter(Boolean);
+    if (!wanted.length) return;
+    let alive = true;
+    const refresh = async (hashes: Array<string>) => {
+      const stats = await fetchBatch(hashes);
+      if (alive && Object.keys(stats).length) setFetched((prev) => ({ ...prev, ...stats }));
+    };
+    void refresh(wanted.filter((h) => !initial[h]));
+    const timer = setInterval(() => refresh(wanted), RefreshMs);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [key]);
+
+  return { ...initial, ...fetched };
 }
