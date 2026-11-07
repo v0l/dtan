@@ -1185,6 +1185,7 @@ dependencies = [
 [[package]]
 name = "nostr-ssr"
 version = "0.1.0"
+source = "git+https://github.com/v0l/nostr-ssr.git?branch=main#9b38849edc06c4958c4b238e2e966a3a755e2c25"
 dependencies = [
  "anyhow",
  "axum",
