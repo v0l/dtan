@@ -5,7 +5,16 @@ RUN bun install
 COPY . .
 RUN bun run build
 
+FROM rust:slim AS rust
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY server/Cargo.toml server/Cargo.lock ./
+COPY server/src ./src
+RUN cargo build --release
+
 FROM voidic/nostr-ssr:latest
 COPY --from=web /app/dist /app/dist
+COPY --from=rust /app/target/release/dtan-ssr /app/dtan-ssr
 COPY ssr.json /app/ssr.json
 ENV CONFIG=/app/ssr.json
+CMD ["/app/dtan-ssr"]

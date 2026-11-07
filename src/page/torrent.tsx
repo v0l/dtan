@@ -17,8 +17,9 @@ import { TorrentTagElement } from "../element/torrent-tag";
 import RelatedTorrents from "../element/related-torrents";
 import TorrentFileList from "../element/file-tree";
 import { Markdown } from "../element/markdown";
+import { useSwarmStats } from "../hooks/swarm";
 import { NotFoundPage } from "./not-found";
-import { setStatus, useHead } from "../ssr";
+import { renderNow, setStatus, useHead } from "../ssr";
 
 export function TorrentPage() {
   const location = useLocation();
@@ -53,6 +54,7 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
   const navigate = useNavigate();
   const profile = useUserProfile(item.pubkey);
   const torrent = NostrTorrent.fromEvent(item);
+  const swarm = useSwarmStats(torrent.infoHash, torrent.trackers);
   useHead({
     title: torrent.title,
     description: `${FormatBytes(torrent.totalSize)} torrent, ${torrent.files.length} files. ${item.content}`.slice(0, 200),
@@ -76,6 +78,18 @@ export function TorrentDetail({ item }: { item: TaggedNostrEvent }) {
       <div className="bg-neutral-900 p-4 rounded-lg flex flex-row">
         <div className="flex flex-col gap-2 flex-grow">
           <div>Size: {FormatBytes(torrent.totalSize)}</div>
+          <div className="flex items-center gap-1">
+            <div>Swarm:</div>
+            {swarm ? (
+              <div className="flex items-center gap-2 font-mono text-sm">
+                <span className="text-green-400" title="Seeds">S:{swarm.seeds}</span>
+                <span className="text-yellow-400" title="Leeches">L:{swarm.leeches}</span>
+                <span className="text-neutral-500 text-xs">{Math.max(0, Math.round((renderNow() - swarm.at) / 60))}m</span>
+              </div>
+            ) : (
+              <div className="text-neutral-500 text-sm">querying trackers...</div>
+            )}
+          </div>
           <div>Uploaded: {formatDateTime(torrent.publishedAt)}</div>
           <div className="flex items-center gap-2">
             Tags:{" "}

@@ -20,11 +20,14 @@ const serverSystem = { config: { socialGraphInstance: socialGraph }, pool: new M
 
 export interface RenderInput {
   url: string;
+  now: number;
+  origin: string;
 }
 
 export function render(input: RenderInput) {
   setServerLocation(input.url);
   const state = beginSsr();
+  state.now = Math.floor(input.now ?? Date.now() / 1000);
   try {
     const html = renderToString(
       <SnortContext.Provider value={serverSystem}>
@@ -39,7 +42,7 @@ export function render(input: RenderInput) {
       html,
       status: state.status,
       head: state.head,
-      data: { queries: state.queries, profiles: state.profiles },
+      data: { queries: state.queries, profiles: state.profiles, swarm: state.swarm },
     };
   } finally {
     endSsr();

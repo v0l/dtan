@@ -16,21 +16,30 @@ export interface Head {
 export interface SsrData {
   queries: Record<string, Array<TaggedNostrEvent>>;
   profiles: Record<string, CachedMetadata>;
+  swarm?: SwarmStats;
+}
+
+export interface SwarmStats {
+  seeds: number;
+  leeches: number;
+  at: number;
 }
 
 export interface SsrState extends SsrData {
   status: number;
   head: Head;
+  now: number;
 }
 
 declare global {
   function relayQuery(filters: string): string;
+  function swarmStats(input: string): string;
 }
 
 let current: SsrState | undefined;
 
 export function beginSsr(): SsrState {
-  current = { status: 200, head: {}, queries: {}, profiles: {} };
+  current = { status: 200, head: {}, queries: {}, profiles: {}, now: 0 };
   return current;
 }
 
@@ -44,6 +53,14 @@ export function ssrState() {
 
 export function setStatus(code: number) {
   if (current) current.status = Math.max(current.status, code);
+}
+
+export function setSwarm(swarm: SwarmStats | undefined) {
+  if (current) current.swarm = swarm;
+}
+
+export function renderNow() {
+  return current?.now ?? Math.floor(Date.now() / 1000);
 }
 
 export function useHead(head: Head) {
@@ -76,4 +93,8 @@ export function hydratedEvents(id: string) {
 
 export function hydratedProfile(pubkey: string) {
   return hydration?.profiles[pubkey];
+}
+
+export function hydratedSwarm() {
+  return hydration?.swarm;
 }
