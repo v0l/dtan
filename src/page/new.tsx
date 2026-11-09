@@ -76,12 +76,14 @@ export function NewPage() {
   async function loadTorrent() {
     const f = await openFile();
     if (f) {
+      setError(undefined);
       const buf = await f.arrayBuffer();
       const torrent = bencode.decode(new Uint8Array(buf)) as Record<string, bencode.BencodeValue>;
       const infoBuf = bencode.encode(torrent["info"]);
       console.debug(torrent);
       const dec = new TextDecoder();
       const info = torrent["info"] as {
+        private?: number;
         files?: Array<{
           length: number;
           path: Array<Uint8Array>;
@@ -90,6 +92,17 @@ export function NewPage() {
         length: number;
         name: Uint8Array;
       };
+
+      // A private torrent's announce URL is typically a per-user passkey. We
+      // publish `announce`/`announce-list` verbatim as public `tracker` tags on
+      // every relay, and events cannot be recalled, so importing one here would
+      // publish that passkey permanently. Refuse rather than leak it.
+      if (info.private !== undefined && Number(info.private) !== 0) {
+        setError(
+          "This .torrent is marked private. Its announce URL is usually a personal passkey, and DTAN publishes tracker tags to every relay permanently. Remove the private flag and the private tracker before publishing here.",
+        );
+        return;
+      }
       const annouce = dec.decode(torrent["announce"] as Uint8Array | undefined);
       const announceList = (torrent["announce-list"] as Array<Array<Uint8Array>> | undefined)?.map((a) =>
         dec.decode(a[0]),
@@ -126,7 +139,7 @@ export function NewPage() {
         btih: bytesToHex(sha1(infoBuf)),
         tcat: "",
         files: files,
-        trackers: dedupe([annouce, ...(announceList ?? [])]),
+        trackers: dedupe([annouce, ...(announceList ?? [])]).filter((t) => t.length > 0),
         externalLabels: [],
       });
     }
