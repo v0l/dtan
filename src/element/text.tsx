@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Mention } from "./mention";
 import { Link } from "react-router-dom";
 import { DefaultImgProxy, proxyImg } from "@snort/shared";
+import { isSafeHref } from "../safe-link";
 
 export function Text({ content, tags, wrap = true }: { content: string; tags: Array<Array<string>>; wrap?: boolean }) {
   const frags = useMemo(() => transformText(content, tags), [content, tags]);
@@ -16,6 +17,8 @@ export function Text({ content, tags, wrap = true }: { content: string; tags: Ar
         const nostrLink = tryParseNostrLink(f.content);
         if (nostrLink) {
           return <Mention key={index} link={nostrLink} />;
+        } else if (!isSafeHref(f.content)) {
+          return <span key={index}>{f.content}</span>;
         } else {
           return (
             <Link key={index} to={f.content} target="_blank" className="text-indigo-300" rel="noopener noreferrer">

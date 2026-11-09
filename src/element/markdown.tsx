@@ -1,6 +1,7 @@
 import { marked, Token } from "marked";
 import { forwardRef, ReactNode, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { isSafeHref } from "../safe-link";
 
 import markedFootnote, { Footnotes, Footnote, FootnoteRef } from "marked-footnote";
 import { Text, ImageFrag } from "./text";
@@ -53,9 +54,16 @@ function renderToken(t: Token | Footnotes | Footnote | FootnoteRef, tags: Array<
         return <blockquote>{t.tokens ? t.tokens.map(a => renderToken(a, tags)) : t.raw}</blockquote>;
       }
       case "link": {
+        const href = t.href as string;
+        const children = t.tokens ? t.tokens.map(a => renderToken(a, tags)) : t.raw;
+        // Markdown can carry any scheme. Render only what we trust as a link;
+        // leave anything else as inert text rather than a dead or dangerous href.
+        if (!isSafeHref(href)) {
+          return <span>{children}</span>;
+        }
         return (
-          <Link to={t.href as string} className="text-highlight no-underline hover:underline" target="_blank">
-            {t.tokens ? t.tokens.map(a => renderToken(a, tags)) : t.raw}
+          <Link to={href} className="text-highlight no-underline hover:underline" target="_blank" rel="noopener noreferrer">
+            {children}
           </Link>
         );
       }

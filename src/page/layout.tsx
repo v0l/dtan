@@ -51,7 +51,7 @@ export function Layout() {
           <Search />
         </div>
         <div className="grow"></div>
-        <a href="https://github.com/v0l/dtan" target="_blank">
+        <a href="https://github.com/v0l/dtan" target="_blank" rel="noopener noreferrer">
           <Button type="secondary">
             <GithubIcon />
           </Button>
