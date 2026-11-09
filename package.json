@@ -9,6 +9,7 @@
     "build:client": "vite build --outDir dist/client",
     "build:ssr": "vite build -c vite.ssr.config.ts",
     "check": "tsc --noEmit",
+    "test": "bun test",
     "deploy": "yarn build && yarn dlx wrangler pages deploy dist"
   },
   "dependencies": {

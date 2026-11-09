@@ -12,6 +12,24 @@ export interface TorrentTag {
   readonly value: string;
 }
 
+const InfoHash = /^[0-9a-fA-F]{40}$/;
+
+/** Leading zero bits of a hex string, ie. the NIP-13 difficulty of an event id. */
+export function leadingZeroBits(hex: string): number {
+  let bits = 0;
+  for (const ch of hex) {
+    const v = parseInt(ch, 16);
+    if (Number.isNaN(v)) return bits;
+    if (v === 0) {
+      bits += 4;
+      continue;
+    }
+    bits += Math.clz32(v) - 28;
+    break;
+  }
+  return bits;
+}
+
 export class NostrTorrent {
   #event?: TaggedNostrEvent;
 
@@ -74,29 +92,20 @@ export class NostrTorrent {
   }
 
   get magnetLink() {
-    const magnet = {
-      xt: `urn:btih:${this.infoHash}`,
-      dn: this.title,
-      tr: this.trackers,
-    };
+    const trackers = this.trackers.length > 0 ? this.trackers : Trackers;
 
-    // use fallback tracker list if empty
-    if (magnet.tr.length === 0) {
-      magnet.tr.push(...Trackers);
+    // `xt` keeps its colons literal: they are legal in a query string and some
+    // clients do not percent-decode the urn. Everything else is escaped, so a
+    // crafted title or tracker cannot inject extra magnet parameters.
+    const parts: Array<string> = [];
+    if (this.infoHash.length > 0) {
+      parts.push(`xt=${encodeURIComponent(`urn:btih:${this.infoHash}`).replace(/%3A/gi, ":")}`);
     }
-
-    const params = Object.entries(magnet)
-      .map(([k, v]) => {
-        if (Array.isArray(v)) {
-          return v.map((a) => `${k}=${encodeURIComponent(a)}`).join("&");
-        } else {
-          return `${k}=${v as string}`;
-        }
-      })
-      .flat()
-      .filter((a) => a.length > 0)
-      .join("&");
-    return `magnet:?${params}`;
+    parts.push(`dn=${encodeURIComponent(this.title)}`);
+    for (const tracker of trackers) {
+      parts.push(`tr=${encodeURIComponent(tracker)}`);
+    }
+    return `magnet:?${parts.join("&")}`;
   }
 
   /**
@@ -104,31 +113,32 @@ export class NostrTorrent {
    */
   static externalDbLink(tag: TorrentTag) {
     const ts = tag.value.split(":");
+    const enc = (s: string) => encodeURIComponent(s);
     switch (tag.type) {
       case "imdb":
-        return `https://www.imdb.com/title/${tag.value}/`;
+        return `https://www.imdb.com/title/${enc(tag.value)}/`;
       case "tmdb": {
         if (ts.length === 2) {
-          return `https://www.themoviedb.org/${ts[0]}/${ts[1]}`;
+          return `https://www.themoviedb.org/${enc(ts[0])}/${enc(ts[1])}`;
         }
         break;
       }
       case "mal": {
         if (ts.length === 2) {
-          return `https://myanimelist.net/${ts[0]}/${ts[1]}`;
+          return `https://myanimelist.net/${enc(ts[0])}/${enc(ts[1])}`;
         }
         break;
       }
       case "anilist": {
         if (ts.length === 2) {
-          return `https://anilist.co/${ts[0]}/${ts[1]}`;
+          return `https://anilist.co/${enc(ts[0])}/${enc(ts[1])}`;
         }
         break;
       }
       case "tpb":
-        return `https://thepiratebay.org/description.php?id=${tag.value}`;
+        return `https://thepiratebay.org/description.php?id=${enc(tag.value)}`;
       case "nyaa":
-        return `https://nyaa.si/view/${tag.value}`;
+        return `https://nyaa.si/view/${enc(tag.value)}`;
     }
   }
 
@@ -178,7 +188,7 @@ export class NostrTorrent {
   static fromEvent(ev: NostrEvent) {
     let infoHash = "";
     let title = "";
-    let pow = 0;
+    let powTarget = 0;
     const files: Array<TorrentFile> = [];
     const trackers: Array<string> = [];
     const tags: Array<TorrentTag> = [];
@@ -194,14 +204,19 @@ export class NostrTorrent {
         // v0: btih tag
         case "btih":
         case "x": {
-          infoHash = t[1];
+          if (InfoHash.test(t[1])) {
+            infoHash = t[1];
+          }
           break;
         }
         case "file": {
-          files.push({
-            name: t[1],
-            size: Number(t[2]),
-          });
+          const size = Number(t[2]);
+          if (Number.isFinite(size) && size >= 0) {
+            files.push({
+              name: t[1],
+              size,
+            });
+          }
           break;
         }
         case "tracker": {
@@ -209,11 +224,13 @@ export class NostrTorrent {
           break;
         }
         case "i": {
-          const kSplit = t[1].split(":", 2);
-          if (kSplit.length === 2) {
+          // Not `split(":", 2)`: that drops everything after the second field,
+          // so `tmdb:movie:123` used to become value "movie" and lose the id.
+          const idx = t[1].indexOf(":");
+          if (idx > 0 && idx < t[1].length - 1) {
             tags.push({
-              type: kSplit[0],
-              value: kSplit[1],
+              type: t[1].slice(0, idx),
+              value: t[1].slice(idx + 1),
             } as TorrentTag);
           }
           break;
@@ -236,12 +253,18 @@ export class NostrTorrent {
         case "nonce": {
           const pv = parseInt(t[2]);
           if (!isNaN(pv)) {
-            pow = pv;
+            powTarget = pv;
           }
           break;
         }
       }
     }
+
+    // NIP-13: the `nonce` tag carries the difficulty the author claims to have
+    // reached, but the event id is what actually has to meet it. Report the
+    // lower of the two so the badge in torrent-list cannot be inflated by
+    // claiming a target the id never satisfied.
+    const pow = Math.min(powTarget, leadingZeroBits(ev.id ?? ""));
 
     let ret = new NostrTorrent(ev.id, title, ev.content, infoHash, ev.created_at, files, trackers, tags, pow);
     ret.#event = ev;
