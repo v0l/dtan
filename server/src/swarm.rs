@@ -15,6 +15,11 @@ const DEFAULT_TRACKERS: [&str; 5] = [
     "udp://tracker.torrent.eu.org:451/announce",
 ];
 const MAX_TRACKERS: usize = 10;
+/// Maximum number of tracker *fetches* running at once.
+///
+/// This is a count of flights, not of cache keys: a single flight covers a whole
+/// batch of info hashes, so one `/batch` request registers one flight even though
+/// it inserts up to `MAX_BATCH` keys into `State::inflight`.
 const MAX_INFLIGHT: usize = 8;
 const MAX_BATCH: usize = 100;
 const RENDER_WAIT: Duration = Duration::from_millis(1500);
@@ -57,6 +62,13 @@ impl Flight {
 struct State {
     entries: HashMap<String, Entry>,
     inflight: HashMap<String, Arc<Flight>>,
+    /// Number of fetches currently running.
+    ///
+    /// `inflight` is keyed per cache key, so `inflight.len()` counts keys rather
+    /// than fetches. Gating on it means a single 100-hash batch reports 100
+    /// "flights" and every later cold lookup is refused for as long as that batch
+    /// runs. Track the real number here instead.
+    flights: usize,
 }
 
 struct Core {
@@ -125,11 +137,12 @@ impl SwarmPlugin {
                     None => batch.push(i),
                 }
             }
-            if !batch.is_empty() && state.inflight.len() < MAX_INFLIGHT {
+            if !batch.is_empty() && state.flights < MAX_INFLIGHT {
                 let flight = Arc::new(Flight { done: Mutex::new(false), signal: Condvar::new() });
                 for &i in &batch {
                     state.inflight.insert(keys[i].clone(), flight.clone());
                 }
+                state.flights += 1;
                 flights.push(flight.clone());
                 self.spawn(flight, batch.iter().map(|&i| keys[i].clone()).collect(), batch.iter().map(|&i| hashes[i]).collect(), trackers);
             }
@@ -157,6 +170,7 @@ impl SwarmPlugin {
                 }
             }
             evict(&mut state.entries, &core.timing);
+            state.flights = state.flights.saturating_sub(1);
             drop(state);
             *flight.done.lock().unwrap() = true;
             flight.signal.notify_all();
@@ -503,5 +517,34 @@ mod tests {
         let (plugin, _) = fixed(Some((1, 1)), Duration::ZERO);
         let hashes: Vec<String> = (0..500u32).map(|n| format!("{n:040x}")).collect();
         assert_eq!(plugin.batch(&hashes, LONG).as_object().unwrap().len(), MAX_BATCH);
+    }
+
+    /// A single `/batch` request inserts one cache key per info hash, so gating
+    /// concurrency on `inflight.len()` made a 100-hash batch look like 100 flights:
+    /// every other cold lookup was answered from an empty cache until that batch
+    /// finished. Regression test for that starvation.
+    #[test]
+    fn a_running_batch_does_not_starve_other_lookups() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let c = calls.clone();
+        let plugin = SwarmPlugin::new(
+            Arc::new(move |_, hashes| {
+                c.fetch_add(1, Ordering::SeqCst);
+                std::thread::sleep(Duration::from_millis(300));
+                vec![Some((10, 2)); hashes.len()]
+            }),
+            Timing::default(),
+        );
+
+        let bulk: Vec<String> = (0..MAX_BATCH as u32).map(|n| format!("{n:040x}")).collect();
+        let p = plugin.clone();
+        let batch = std::thread::spawn(move || p.batch(&bulk, LONG));
+
+        std::thread::sleep(Duration::from_millis(50)); // let the batch flight start
+        let other = "ffffffffffffffffffffffffffffffffffffffff";
+        assert_eq!(seeds(plugin.stats(other, &[], LONG)), Some(10), "unrelated lookup was starved by a running batch");
+
+        assert_eq!(batch.join().unwrap().as_object().unwrap().len(), MAX_BATCH);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 }
