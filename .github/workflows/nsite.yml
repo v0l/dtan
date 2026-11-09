@@ -4,6 +4,11 @@ on:
     branches:
       - main
 
+# The deploy only needs to read the repo; the Docker Hub credential lives in a
+# separate workflow. Keep the default token read-only.
+permissions:
+  contents: read
+
 concurrency:
   group: nsyte-deploy
   cancel-in-progress: true
@@ -19,7 +24,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build
         run: bun run build
@@ -28,4 +33,12 @@ jobs:
         uses: denoland/setup-deno@v1
 
       - name: Deploy nsyte
-        run: nsyte deploy dist/client --sec ${{ secrets.NBUNK_SECRET }}
+        env:
+          # Passed through the environment rather than interpolated into the
+          # command line: `run: ... --sec ${{ secrets.NBUNK_SECRET }}` puts the
+          # site signing key into the shell command, which is visible in the
+          # process table and in any debug echo of the step.
+          NBUNK_SECRET: ${{ secrets.NBUNK_SECRET }}
+        # `bunx` resolves the @nsyte/cli devDependency; a bare `nsyte` is not on
+        # PATH here.
+        run: bunx nsyte deploy dist/client --sec "$NBUNK_SECRET"

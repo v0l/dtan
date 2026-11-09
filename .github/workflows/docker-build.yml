@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+# Building and pushing images needs the repo contents and the Docker Hub token,
+# which is passed to docker/login-action directly. The GITHUB_TOKEN itself only
+# needs to read the repo.
+permissions:
+  contents: read
+
 concurrency:
   group: docker-build
   cancel-in-progress: true
@@ -20,7 +26,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build Client
         run: bun run build:client
