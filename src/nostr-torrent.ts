@@ -205,7 +205,12 @@ export class NostrTorrent {
         case "btih":
         case "x": {
           if (InfoHash.test(t[1])) {
-            infoHash = t[1];
+            // Canonicalise here, at the single ingestion point. The relay-side
+            // `#x` filter and the duplicate marker compare strings exactly, so an
+            // event published with an uppercase hash would otherwise not dedupe
+            // against the same torrent published lowercase, and the magnet link
+            // would inherit whichever case arrived first.
+            infoHash = t[1].toLowerCase();
           }
           break;
         }
@@ -251,9 +256,9 @@ export class NostrTorrent {
           break;
         }
         case "nonce": {
-          const pv = parseInt(t[2]);
-          if (!isNaN(pv)) {
-            powTarget = pv;
+          // A full decimal integer only: `parseInt` would accept "20abc" as 20.
+          if (typeof t[2] === "string" && /^\d+$/.test(t[2])) {
+            powTarget = parseInt(t[2], 10);
           }
           break;
         }

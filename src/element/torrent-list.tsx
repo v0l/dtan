@@ -152,7 +152,7 @@ function TorrentTableEntry({
 }) {
   const torrent = NostrTorrent.fromEvent(item);
   const stats = swarm[torrent.infoHash.toLowerCase()];
-  const isDuplicate = currentInfoHash && torrent.infoHash === currentInfoHash;
+  const isDuplicate = currentInfoHash ? torrent.infoHash.toLowerCase() === currentInfoHash.toLowerCase() : false;
 
   return (
     <tr className="hover:bg-indigo-800">

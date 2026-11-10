@@ -51,6 +51,18 @@ describe("fromEvent", () => {
 
     expect(NostrTorrent.fromEvent(ev([["x", HASH]], id)).pow).toBe(0);
   });
+
+  test("ignores a non-integer nonce target", () => {
+    const id = "0" + "f".repeat(63);
+    // `parseInt("20abc")` used to yield 20; nothing but a full decimal counts.
+    expect(NostrTorrent.fromEvent(ev([["nonce", "1", "20abc"]], id)).pow).toBe(0);
+  });
+
+  test("normalises an uppercase info hash at ingestion", () => {
+    const t = NostrTorrent.fromEvent(ev([["x", HASH.toUpperCase()]]));
+    expect(t.infoHash).toBe(HASH);
+    expect(magnetParams(t.magnetLink).getAll("xt")).toEqual([`urn:btih:${HASH}`]);
+  });
 });
 
 describe("magnetLink", () => {

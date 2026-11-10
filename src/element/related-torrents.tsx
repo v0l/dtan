@@ -16,7 +16,7 @@ export default function RelatedTorrents({ torrent }: { torrent: NostrTorrent }) 
         .limit(5);
     }
     return rb;
-  }, [torrent.id]);
+  }, [torrent.id, torrent.infoHash, torrent.imdb]);
   const data = useRequestBuilder(req).filter((a) => a.id !== torrent.id);
 
   if (data.length === 0) {
