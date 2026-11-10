@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { isSafeHref } from "./safe-link";
+import { isSafeHref, safeHref } from "./safe-link";
 
 describe("isSafeHref", () => {
   test("allows the schemes dtan links to", () => {
@@ -36,6 +36,22 @@ describe("isSafeHref", () => {
     ]) {
       expect(isSafeHref(href)).toBe(false);
     }
+  });
+
+  test("refuses protocol-relative and internally-spaced URLs", () => {
+    // `//host` leaves the site; treating it as a relative link was an open
+    // redirect behind a first-character check.
+    expect(isSafeHref("//evil.example/x")).toBe(false);
+    // Interior whitespace is refused rather than silently deleted, which used to
+    // rewrite `https://ex.com/a b` into `https://ex.com/ab`.
+    expect(isSafeHref("https://ex.com/a b")).toBe(false);
+    expect(safeHref("https://ex.com/a b")).toBeUndefined();
+  });
+
+  test("returns the trimmed value that should actually be rendered", () => {
+    expect(safeHref("  https://dtan.xyz/e/nevent1abc  ")).toBe("https://dtan.xyz/e/nevent1abc");
+    expect(safeHref("/e/nevent1abc")).toBe("/e/nevent1abc");
+    expect(safeHref("javascript:alert(1)")).toBeUndefined();
   });
 
   test("treats schemeless values as relative links", () => {
