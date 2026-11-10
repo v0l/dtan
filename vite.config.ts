@@ -1,28 +1,7 @@
 import { defineConfig, searchForWorkspaceRoot, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
-
-/**
- * Keep in sync with the Content-Security-Policy header in docker/nginx.conf.
- *
- * `frame-ancestors` and `upgrade-insecure-requests` are omitted here: a <meta>
- * CSP ignores frame-ancestors, and the nginx header already covers both.
- */
-export const CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self'",
-  "connect-src 'self' https: wss: blob:",
-  "media-src 'self' https: blob:",
-  "worker-src 'self' blob:",
-  "manifest-src 'self'",
-  "frame-src https://wt-player.pages.dev",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join("; ");
+import { CSP } from "./src/csp";
 
 /**
  * The Docker image gets its policy from nginx, but the nsite and Blossom copies
