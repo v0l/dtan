@@ -2,7 +2,7 @@ use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use reqwest::Url;
 use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs, UdpSocket};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 const TIMEOUT: Duration = Duration::from_secs(4);
@@ -46,6 +46,11 @@ fn public_v6(ip: Ipv6Addr) -> bool {
     if s[..6].iter().all(|x| *x == 0) && !(s[6] == 0 && s[7] <= 1) {
         return public_v4(Ipv4Addr::from(((s[6] as u32) << 16) | s[7] as u32));
     }
+    // IPv4-translated (::ffff:0:a.b.c.d). `to_ipv4_mapped` covers only
+    // ::ffff:a.b.c.d, so this form reached the embedded v4 unfiltered before.
+    if s[..4].iter().all(|x| *x == 0) && s[4] == 0xffff && s[5] == 0 {
+        return public_v4(Ipv4Addr::from(((s[6] as u32) << 16) | s[7] as u32));
+    }
     !(ip.is_loopback()
         || ip.is_unspecified()
         || ip.is_multicast()
@@ -56,7 +61,11 @@ fn public_v6(ip: Ipv6Addr) -> bool {
         || s[0] == 0x2002 // 2002::/16 6to4, embeds an arbitrary v4
         || (s[0] == 0x2001 && s[1] == 0) // 2001::/32 Teredo, embeds an arbitrary v4
         || (s[0] == 0x2001 && s[1] == 0x0002) // 2001:2::/48 benchmarking
-        || (s[0] == 0x2001 && s[1] == 0x0db8)) // 2001:db8::/32 documentation
+        || (s[0] == 0x2001 && (s[1] & 0xfff0) == 0x0010) // 2001:10::/28 ORCHID
+        || (s[0] == 0x2001 && (s[1] & 0xfff0) == 0x0020) // 2001:20::/28 ORCHIDv2
+        || (s[0] == 0x2001 && s[1] == 0x0db8) // 2001:db8::/32 documentation
+        || (s[0] & 0xff00) == 0x5f00 // 5f00::/8 SRv6 SIDs
+        || (s[0] == 0x3fff && (s[1] & 0xf000) == 0)) // 3fff::/20 documentation (RFC 9637)
 }
 
 struct PublicOnly;
@@ -287,15 +296,59 @@ pub fn parse_udp_scrape(buf: &[u8], tx: u32, count: usize) -> Option<Vec<Option<
     )
 }
 
-/// Resolve a tracker host on a helper thread so a tarpit resolver cannot pin the
-/// calling flight indefinitely: `ToSocketAddrs` is blocking and has no timeout of
-/// its own.
+/// Resolver workers.
+///
+/// `getaddrinfo()` cannot be cancelled, so a stuck resolver keeps whatever thread
+/// is running it forever. A fixed, small pool is the only way to stop that from
+/// becoming one abandoned thread per timeout: with eight flights and a two-second
+/// timeout the old code reached roughly two abandoned threads per second for as
+/// long as the tarpit lasted.
+const RESOLVER_THREADS: usize = 2;
+
+type ResolveJob = (String, std::sync::mpsc::Sender<std::io::Result<Vec<SocketAddr>>>);
+
+struct ResolverPool {
+    queue: std::sync::mpsc::SyncSender<ResolveJob>,
+}
+
+#[cfg(test)]
+static RESOLVER_THREADS_STARTED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn resolver_pool() -> &'static ResolverPool {
+    static POOL: OnceLock<ResolverPool> = OnceLock::new();
+    POOL.get_or_init(|| {
+        // Bounded twice over: at most `RESOLVER_THREADS` resolutions run at once,
+        // and at most `RESOLVER_THREADS` more may wait in the queue.
+        let (queue, rx) = std::sync::mpsc::sync_channel::<ResolveJob>(RESOLVER_THREADS);
+        let rx = Arc::new(Mutex::new(rx));
+        for _ in 0..RESOLVER_THREADS {
+            let rx = rx.clone();
+            std::thread::spawn(move || loop {
+                // Only the receive is serialised. Resolution runs outside the
+                // lock, so both workers can be stuck in `getaddrinfo` at once.
+                let job = match rx.lock() {
+                    Ok(rx) => rx.recv(),
+                    Err(_) => return,
+                };
+                let Ok((target, reply)) = job else { return };
+                let resolved = target.to_socket_addrs().map(|i| i.collect::<Vec<_>>());
+                let _ = reply.send(resolved);
+            });
+            #[cfg(test)]
+            RESOLVER_THREADS_STARTED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        ResolverPool { queue }
+    })
+}
+
+/// Resolve a tracker host without pinning the calling flight, and without letting
+/// a tarpit resolver grow the thread count.
 fn resolve_with_timeout(host: &str, port: u16, budget: Duration) -> Option<Vec<SocketAddr>> {
     let target = format!("{host}:{port}");
     let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(target.to_socket_addrs().map(|i| i.collect::<Vec<_>>()));
-    });
+    // A full queue means both workers are stuck and two lookups are already
+    // waiting. Fail closed rather than queueing without bound.
+    resolver_pool().queue.try_send((target, tx)).ok()?;
     rx.recv_timeout(budget).ok()?.ok()
 }
 
@@ -458,17 +511,47 @@ mod tests {
             "fec0::1",
             "::ffff:10.0.0.1",
             "::10.0.0.1",
+            "::ffff:0:10.0.0.1",
             "64:ff9b::a00:1",
+            "64:ff9b::7f00:1",
+            "64:ff9b:1::1",
             "2002:0a00:0001::1",
             "2001::1",
             "2001:2::1",
+            "2001:10::1",
+            "2001:20::1",
             "2001:db8::1",
+            "5f00::1",
+            "3fff::1",
         ] {
             assert!(!is_public(ip.parse().unwrap()), "{ip}");
         }
         for ip in ["1.1.1.1", "8.8.8.8", "9.9.9.9", "2606:4700::1111", "2001:4860:4860::8888", "2a00:1450:4001:80b::200e"] {
             assert!(is_public(ip.parse().unwrap()), "{ip}");
         }
+    }
+
+    /// The resolver must have a fixed thread count, not one thread per lookup.
+    ///
+    /// The previous implementation spawned a thread per call and abandoned it on
+    /// timeout, so a stuck resolver leaked threads at the request rate. Here 20
+    /// concurrent lookups may only ever have produced `RESOLVER_THREADS` workers.
+    #[test]
+    fn resolver_threads_stay_bounded() {
+        let mut calls = Vec::new();
+        for _ in 0..20 {
+            calls.push(std::thread::spawn(|| {
+                let _ = resolve_with_timeout("does-not-exist.invalid", 80, Duration::from_millis(500));
+            }));
+        }
+        for call in calls {
+            call.join().unwrap();
+        }
+        assert_eq!(
+            RESOLVER_THREADS_STARTED.load(std::sync::atomic::Ordering::SeqCst),
+            RESOLVER_THREADS,
+            "resolution spawned more workers than the fixed pool size"
+        );
     }
 
     #[test]
