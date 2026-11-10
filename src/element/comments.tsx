@@ -7,6 +7,7 @@ import { Button } from "./button";
 import { useLogin } from "../login";
 import { Text } from "./text";
 import { SSRKeepAlive, TorrentCommentKind, ZapKind, formatDateTime, formatSats } from "../const";
+import { isCountableZap, totalSats } from "../zaps";
 
 // Types for combined interactions
 type CommentInteraction = TaggedNostrEvent & { type: "comment" };
@@ -21,7 +22,8 @@ export function Comments({ ev }: { ev: TaggedNostrEvent }) {
   rb.withFilter().kinds([TorrentCommentKind, ZapKind]).replyToLink([link]);
   const interactions = useRequestBuilder(rb);
 
-  // Separate comments and zaps
+  // Separate comments and zaps. Only receipts that verified are shown or summed:
+  // an unverified receipt is still a signable event, so counting it is forgeable.
   const comments = interactions.filter((event) => event.kind === TorrentCommentKind);
   const zaps = interactions
     .filter((event) => event.kind === ZapKind)
@@ -30,10 +32,11 @@ export function Comments({ ev }: { ev: TaggedNostrEvent }) {
         zap: parseZap(z),
         event: z,
       };
-    });
+    })
+    .filter((z) => isCountableZap(z.zap));
 
   // Calculate total zaps
-  const totalZaps = zaps.reduce((total, zap) => total + (zap.zap.amount ?? 0), 0);
+  const totalZaps = totalSats(zaps.map((z) => z.zap));
 
   // Combine and sort all interactions by timestamp
   const allInteractions: Interaction[] = [
