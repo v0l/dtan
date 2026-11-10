@@ -41,8 +41,12 @@ jobs:
       # key only via `--sec <value>` (argv, visible in the process table) or
       # `--prompt-sec` (interactive TTY). No environment-variable or
       # credential-file path exists, so CI cannot publish without exposing the
-      # key. Publishing stays manual, from a TTY, where --prompt-sec keeps the
-      # key out of argv and shell history.
+      # key. Publishing stays manual, from a TTY.
+      #
+      # `--dry-run` is not a key-free gate either: it builds and signs the site
+      # manifest, so with no key it drops into key management and waits (verified
+      # 2026-11-10). `--version` and `deploy --help` are the checks that load the
+      # whole command graph without a key or a network round trip.
       - name: Verify nsyte CLI loads from the locked tree
         run: |
           set -euo pipefail
