@@ -32,13 +32,33 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v1
 
-      - name: Deploy nsyte
-        env:
-          # Passed through the environment rather than interpolated into the
-          # command line: `run: ... --sec ${{ secrets.NBUNK_SECRET }}` puts the
-          # site signing key into the shell command, which is visible in the
-          # process table and in any debug echo of the step.
-          NBUNK_SECRET: ${{ secrets.NBUNK_SECRET }}
-        # `bunx` resolves the @nsyte/cli devDependency; a bare `nsyte` is not on
-        # PATH here.
-        run: bunx nsyte deploy dist/client --sec "$NBUNK_SECRET"
+      # The published package (@jsr/nsyte__cli) has no `bin` entry: it ships an
+      # ESM entry at src/cli.js and calls Deno.args/Deno.exit. So `bunx nsyte`
+      # cannot resolve it, and `bun` cannot execute it. `deno run` on the
+      # resolved path is the supported invocation for this version.
+      #
+      # This step deliberately does not publish. nsyte 0.27.4 accepts a signing
+      # key only via `--sec <value>` (argv, visible in the process table) or
+      # `--prompt-sec` (interactive TTY). No environment-variable or
+      # credential-file path exists, so CI cannot publish without exposing the
+      # key. Publishing stays manual, from a TTY, where --prompt-sec keeps the
+      # key out of argv and shell history.
+      - name: Verify nsyte CLI loads from the locked tree
+        run: |
+          set -euo pipefail
+          cli=node_modules/@nsyte/cli/src/cli.js
+          deno run -A --quiet "$cli" --version
+          deno run -A --quiet "$cli" deploy --help > /dev/null
+
+      # Regression guard: a signing key must never be interpolated into a
+      # command line again. Matches only the two real risk shapes — the Actions
+      # secret expression, and a dynamic value passed to --sec — so this block's
+      # own pattern text cannot trigger it. Comment lines are exempt.
+      - name: Assert no signing key reaches a command line
+        run: |
+          set -euo pipefail
+          if grep -rnE '\$\{\{[[:space:]]*secrets\.NBUNK_SECRET|--sec[[:space:]]+["$]' .github/workflows/ \
+              | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#'; then
+            echo "::error::a signing key is passed on a command line; see the comment in nsite.yml"
+            exit 1
+          fi
