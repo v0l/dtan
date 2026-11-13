@@ -22,7 +22,7 @@ export function TorrentTagElement({ tag }: { tag: TorrentTag }) {
       case "imdb": {
         const url = NostrTorrent.externalDbLink(tag);
         return (
-          <a href={url} target="_blank" title={`Open external link: ${url}`}>
+          <a href={url} target="_blank" rel="noopener noreferrer" title={`Open external link: ${url}`}>
             <img src={IMDB} className="h-8" />
           </a>
         );
@@ -30,7 +30,7 @@ export function TorrentTagElement({ tag }: { tag: TorrentTag }) {
       case "tpb": {
         const url = NostrTorrent.externalDbLink(tag);
         return wrap(
-          <a href={url} target="_blank" className="flex gap-2 items-center" title={`Open external link: ${url}`}>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="flex gap-2 items-center" title={`Open external link: ${url}`}>
             <img src={TPB} className="h-6 rounded-full" />
             <span>TPB</span>
           </a>,
@@ -39,7 +39,7 @@ export function TorrentTagElement({ tag }: { tag: TorrentTag }) {
       case "nyaa": {
         const url = NostrTorrent.externalDbLink(tag);
         return wrap(
-          <a href={url} target="_blank" className="flex gap-2 items-center" title={`Open external link: ${url}`}>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="flex gap-2 items-center" title={`Open external link: ${url}`}>
             <img src={Nyaa} className="h-6 rounded-full" />
             <span>Nyaa</span>
           </a>,
@@ -47,7 +47,7 @@ export function TorrentTagElement({ tag }: { tag: TorrentTag }) {
       }
       default:
         return wrap(
-          <Link to={`/search/?tags=${tag.value}`} title="Search tag">
+          <Link to={`/search/?tags=${encodeURIComponent(tag.value)}`} title="Search tag">
             #{tag.value}
           </Link>,
         );
