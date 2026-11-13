@@ -8,6 +8,31 @@ interface PlayerModalProps {
   path?: string;
 }
 
+/**
+ * The player is a third-party Pages project, embedded as a cross-origin iframe.
+ *
+ * The CSP `frame-src` directive must name exactly this origin or the iframe is
+ * blocked outright, and the sandbox only holds because the frame is cross-origin:
+ * a same-origin player could remove its own sandbox.
+ */
+export const PLAYER_ORIGIN = "https://wt-player.pages.dev";
+
+/**
+ * `btoa` only accepts Latin-1, so a torrent title or filename outside that range
+ * (anything with Japanese, Cyrillic, emoji, ...) throws InvalidCharacterError and
+ * takes the whole render down with it. Encode to UTF-8 first, then base64 the
+ * bytes. Standard base64 is kept, not base64url, because that is what the player
+ * decodes from the fragment.
+ */
+export function toBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const b of bytes) {
+    binary += String.fromCharCode(b);
+  }
+  return btoa(binary);
+}
+
 export function PlayerModal({ isOpen, onClose, magnet, path }: PlayerModalProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -34,8 +59,8 @@ export function PlayerModal({ isOpen, onClose, magnet, path }: PlayerModalProps)
     ...(path && { path }),
   };
 
-  const base64Data = btoa(JSON.stringify(playerData));
-  const playerUrl = `https://wt-player.pages.dev/#${base64Data}`;
+  const base64Data = toBase64(JSON.stringify(playerData));
+  const playerUrl = `${PLAYER_ORIGIN}/#${base64Data}`;
 
   const modalContent = (
     <div
@@ -56,6 +81,12 @@ export function PlayerModal({ isOpen, onClose, magnet, path }: PlayerModalProps)
             className="w-full h-full rounded-lg"
             allow="autoplay; fullscreen"
             title="WebTorrent Player"
+            // The player is a third-party Pages project. It needs scripts and its
+            // own storage, but it should not be able to navigate the top frame,
+            // open popups, or read a referrer that tells wt-player.pages.dev which
+            // torrent page the user was on.
+            sandbox="allow-scripts allow-same-origin allow-presentation"
+            referrerPolicy="no-referrer"
           />
         </div>
       </div>
