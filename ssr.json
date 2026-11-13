@@ -11,5 +11,18 @@
   ],
   "sitemap": [{"name": "torrents", "filter": {"kinds": [2003]}, "prefix": "/e/", "encoding": "nevent", "chunk": 40000}],
   "static_paths": ["/", "/categories", "/relays"],
-  "warm": ["/"]
+  "warm": ["/"],
+  "headers": [
+    {
+      "prefix": "/",
+      "set": {
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https: wss: blob:; media-src 'self' https: blob:; worker-src 'self' blob:; manifest-src 'self'; frame-src https://wt-player.pages.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "X-Frame-Options": "DENY",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Permissions-Policy": "autoplay=*, camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+      }
+    }
+  ]
 }
