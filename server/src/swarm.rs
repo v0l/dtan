@@ -15,6 +15,11 @@ const DEFAULT_TRACKERS: [&str; 5] = [
     "udp://tracker.torrent.eu.org:451/announce",
 ];
 const MAX_TRACKERS: usize = 10;
+/// Maximum number of tracker *fetches* running at once.
+///
+/// This is a count of flights, not of cache keys: a single flight covers a whole
+/// batch of info hashes, so one `/batch` request registers one flight even though
+/// it inserts up to `MAX_BATCH` keys into `State::inflight`.
 const MAX_INFLIGHT: usize = 8;
 const MAX_BATCH: usize = 100;
 const RENDER_WAIT: Duration = Duration::from_millis(1500);
@@ -48,8 +53,69 @@ struct Flight {
 
 impl Flight {
     fn wait(&self, budget: Duration) {
-        let done = self.done.lock().unwrap();
-        let _ = self.signal.wait_timeout_while(done, budget, |done| !*done).unwrap();
+        let done = lock(&self.done);
+        // A poisoned `done` lock means the worker panicked; `Drop` has already
+        // marked the flight finished, so waiting is harmless either way.
+        let _ = self.signal.wait_timeout_while(done, budget, |done| !*done);
+    }
+}
+
+/// Lock without panicking on poisoning.
+///
+/// One panicking request must not turn every later request into a 500, and
+/// `Drop` in particular must never panic: a panic while unwinding aborts the
+/// process.
+fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Owns one in-flight fetch and the cache keys it reserved.
+///
+/// The reservation has to be returned exactly once on every exit path: normal
+/// completion, an early return, or unwinding out of the fetch because it panicked.
+/// Putting it in a value whose `Drop` releases it is what makes that true — a bare
+/// decrement at the end of the worker only covers the normal path, so a panic
+/// there leaves the slot taken permanently. Eight such panics exhaust
+/// `MAX_INFLIGHT` and every later lookup is refused, which is the starvation this
+/// module exists to prevent.
+struct FlightGuard {
+    core: Arc<Core>,
+    flight: Arc<Flight>,
+    keys: Vec<String>,
+}
+
+impl FlightGuard {
+    /// Store the fetched counts, then release the reservation through `Drop`.
+    fn complete(self, answers: Vec<Option<Counts>>) {
+        {
+            let mut state = lock(&self.core.state);
+            for (key, counts) in self.keys.iter().cloned().zip(answers) {
+                let keep_old = counts.is_none()
+                    && state.entries.get(&key).is_some_and(|e| e.counts.is_some() && e.at.elapsed() < self.core.timing.stale);
+                if !keep_old {
+                    state.entries.insert(key, Entry { at: Instant::now(), counts });
+                }
+            }
+        }
+        // `self` is dropped here, which clears the keys, returns the slot and
+        // wakes any waiter. The same happens while unwinding if `fetch` panicked.
+    }
+}
+
+impl Drop for FlightGuard {
+    fn drop(&mut self) {
+        {
+            let mut state = lock(&self.core.state);
+            for key in &self.keys {
+                state.inflight.remove(key);
+            }
+            // Exactly one guard exists per reservation, so this is exactly one
+            // decrement; `saturating_sub` is only a floor, never the mechanism.
+            state.flights = state.flights.saturating_sub(1);
+            evict(&mut state.entries, &self.core.timing);
+        }
+        *lock(&self.flight.done) = true;
+        self.flight.signal.notify_all();
     }
 }
 
@@ -57,6 +123,13 @@ impl Flight {
 struct State {
     entries: HashMap<String, Entry>,
     inflight: HashMap<String, Arc<Flight>>,
+    /// Number of fetches currently running.
+    ///
+    /// `inflight` is keyed per cache key, so `inflight.len()` counts keys rather
+    /// than fetches. Gating on it means a single 100-hash batch reports 100
+    /// "flights" and every later cold lookup is refused for as long as that batch
+    /// runs. Track the real number here instead.
+    flights: usize,
 }
 
 struct Core {
@@ -109,8 +182,10 @@ impl SwarmPlugin {
         let keys: Vec<String> = hashes.iter().map(|h| cache_key(h, &trackers)).collect();
 
         let mut flights: Vec<Arc<Flight>> = Vec::new();
-        {
-            let mut state = self.core.state.lock().unwrap();
+        // Reserve keys and a slot under one lock, and hand the reservation to a
+        // guard before the lock is released, so no exit path can strand it.
+        let reserved = {
+            let mut state = lock(&self.core.state);
             let mut wanted: Vec<usize> = Vec::new();
             for (i, key) in keys.iter().enumerate() {
                 let fresh = state.entries.get(key).is_some_and(|e| e.at.elapsed() < if e.counts.is_some() { timing.fresh } else { timing.negative });
@@ -125,42 +200,50 @@ impl SwarmPlugin {
                     None => batch.push(i),
                 }
             }
-            if !batch.is_empty() && state.inflight.len() < MAX_INFLIGHT {
+            if batch.is_empty() || state.flights >= MAX_INFLIGHT {
+                None
+            } else {
                 let flight = Arc::new(Flight { done: Mutex::new(false), signal: Condvar::new() });
-                for &i in &batch {
-                    state.inflight.insert(keys[i].clone(), flight.clone());
+                let batch_keys: Vec<String> = batch.iter().map(|&i| keys[i].clone()).collect();
+                for key in &batch_keys {
+                    state.inflight.insert(key.clone(), flight.clone());
                 }
+                state.flights += 1;
                 flights.push(flight.clone());
-                self.spawn(flight, batch.iter().map(|&i| keys[i].clone()).collect(), batch.iter().map(|&i| hashes[i]).collect(), trackers);
+                let batch_hashes: Vec<[u8; 20]> = batch.iter().map(|&i| hashes[i]).collect();
+                Some((FlightGuard { core: self.core.clone(), flight, keys: batch_keys }, batch_hashes))
             }
+        };
+        if let Some((guard, batch_hashes)) = reserved {
+            self.spawn(guard, batch_hashes, trackers);
         }
 
         let deadline = Instant::now() + wait;
         for flight in flights {
             flight.wait(deadline.saturating_duration_since(Instant::now()));
         }
-        let state = self.core.state.lock().unwrap();
+        let state = lock(&self.core.state);
         keys.iter().map(|k| state.entries.get(k).and_then(|e| e.counts)).collect()
     }
 
-    fn spawn(&self, flight: Arc<Flight>, keys: Vec<String>, hashes: Vec<[u8; 20]>, trackers: Vec<String>) {
-        let core = self.core.clone();
+    /// Run one flight. The guard travels into the worker so that a panic in
+    /// `fetch` unwinds through `Drop` and returns the slot instead of leaking it.
+    fn spawn(&self, guard: FlightGuard, hashes: Vec<[u8; 20]>, trackers: Vec<String>) {
+        let core = guard.core.clone();
         std::thread::spawn(move || {
             let mut answers = (core.fetch)(&trackers, &hashes);
-            answers.resize(keys.len(), None);
-            let mut state = core.state.lock().unwrap();
-            for (key, counts) in keys.into_iter().zip(answers) {
-                state.inflight.remove(&key);
-                let keep_old = counts.is_none() && state.entries.get(&key).is_some_and(|e| e.counts.is_some() && e.at.elapsed() < core.timing.stale);
-                if !keep_old {
-                    state.entries.insert(key, Entry { at: Instant::now(), counts });
-                }
-            }
-            evict(&mut state.entries, &core.timing);
-            drop(state);
-            *flight.done.lock().unwrap() = true;
-            flight.signal.notify_all();
+            answers.resize(guard.keys.len(), None);
+            guard.complete(answers);
         });
+    }
+}
+
+#[cfg(test)]
+impl SwarmPlugin {
+    /// Test-only view of the reservation accounting: (flights, inflight keys).
+    fn debug_counts(&self) -> (usize, usize) {
+        let state = lock(&self.core.state);
+        (state.flights, state.inflight.len())
     }
 }
 
@@ -503,5 +586,81 @@ mod tests {
         let (plugin, _) = fixed(Some((1, 1)), Duration::ZERO);
         let hashes: Vec<String> = (0..500u32).map(|n| format!("{n:040x}")).collect();
         assert_eq!(plugin.batch(&hashes, LONG).as_object().unwrap().len(), MAX_BATCH);
+    }
+
+    /// A single `/batch` request inserts one cache key per info hash, so gating
+    /// concurrency on `inflight.len()` made a 100-hash batch look like 100 flights:
+    /// every other cold lookup was answered from an empty cache until that batch
+    /// finished. Regression test for that starvation.
+    #[test]
+    fn a_running_batch_does_not_starve_other_lookups() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let (started, ready) = std::sync::mpsc::channel();
+        let c = calls.clone();
+        let plugin = SwarmPlugin::new(
+            Arc::new(move |_, hashes| {
+                c.fetch_add(1, Ordering::SeqCst);
+                let _ = started.send(());
+                std::thread::sleep(Duration::from_millis(300));
+                vec![Some((10, 2)); hashes.len()]
+            }),
+            Timing::default(),
+        );
+
+        let bulk: Vec<String> = (0..MAX_BATCH as u32).map(|n| format!("{n:040x}")).collect();
+        let p = plugin.clone();
+        let batch = std::thread::spawn(move || p.batch(&bulk, LONG));
+
+        // Wait for the batch flight to actually start. A fixed sleep is either
+        // flaky (slow runner) or wasted (fast one); this is neither.
+        ready.recv_timeout(Duration::from_secs(5)).expect("the batch flight never started");
+        let other = "ffffffffffffffffffffffffffffffffffffffff";
+        assert_eq!(seeds(plugin.stats(other, &[], LONG)), Some(10), "unrelated lookup was starved by a running batch");
+
+        assert_eq!(batch.join().unwrap().as_object().unwrap().len(), MAX_BATCH);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    /// A panic inside `fetch` must not cost a slot.
+    ///
+    /// Before the guard, the decrement sat on the normal path at the end of the
+    /// worker: a panic skipped it, so eight panics left `flights == 8` and
+    /// `inflight.len() == 8` with nothing running, and every later lookup was
+    /// answered from an empty cache.
+    #[test]
+    fn fetch_panics_release_every_slot() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let gate = Arc::new(std::sync::Barrier::new(MAX_INFLIGHT));
+        let c = calls.clone();
+        let g = gate.clone();
+        let plugin = SwarmPlugin::new(
+            Arc::new(move |_, hashes| {
+                let n = c.fetch_add(1, Ordering::SeqCst);
+                if n < MAX_INFLIGHT {
+                    // Hold every flight open until all eight reservations exist,
+                    // so the panics unwind from a fully saturated state.
+                    g.wait();
+                    panic!("injected fetch panic");
+                }
+                vec![Some((10, 2)); hashes.len()]
+            }),
+            Timing::default(),
+        );
+
+        let mut workers = Vec::new();
+        for n in 0..MAX_INFLIGHT {
+            let p = plugin.clone();
+            let hash = format!("{n:040x}");
+            workers.push(std::thread::spawn(move || p.stats(&hash, &[], LONG)));
+        }
+        for w in workers {
+            w.join().expect("a fetch panic must stay inside the worker thread");
+        }
+
+        assert_eq!(plugin.debug_counts(), (0, 0), "fetch panics stranded flight slots");
+
+        // Capacity is usable again, not merely counted correctly.
+        let after = "ffffffffffffffffffffffffffffffffffffffff";
+        assert_eq!(seeds(plugin.stats(after, &[], LONG)), Some(10), "no slot was available after the panics");
     }
 }
