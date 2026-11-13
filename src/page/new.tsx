@@ -1,5 +1,5 @@
 import "./new.css";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Categories, Category } from "../const";
 import { Button } from "../element/button";
 import { useLogin } from "../login";
@@ -11,6 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useHead } from "../ssr";
 import { EventExt, NostrLink } from "@snort/system";
 import { NostrTorrent, TorrentTag } from "../nostr-torrent";
+import { privateTorrentRefusal } from "../torrent-import";
 
 async function openFile(): Promise<File | undefined> {
   return new Promise((resolve) => {
@@ -54,6 +55,21 @@ function entryIsValid(entry: TorrentEntry) {
   );
 }
 
+/**
+ * A blank entry. Reused as the reset value: choosing a file has to clear whatever
+ * the previous one populated, or a refused second import leaves the first
+ * torrent's title, hash and file list on screen behind the error.
+ */
+const EMPTY_ENTRY: TorrentEntry = {
+  name: "",
+  desc: "",
+  btih: "",
+  tcat: "",
+  files: [],
+  trackers: [],
+  externalLabels: [],
+};
+
 export function NewPage() {
   const login = useLogin();
   const navigate = useNavigate();
@@ -62,26 +78,32 @@ export function NewPage() {
   const [newLabelSubType, setNewLabelSubType] = useState("");
   const [newLabelValue, setNewLabelValue] = useState("");
   const [error, setError] = useState<string>();
+  const errorRef = useRef<HTMLDivElement>(null);
 
-  const [obj, setObj] = useState<TorrentEntry>({
-    name: "",
-    desc: "",
-    btih: "",
-    tcat: "",
-    files: [],
-    trackers: [],
-    externalLabels: [],
-  });
+  // Put the cursor on the error when an import is refused: the message explains
+  // why the form is still empty, and it sits below the fold on a long form.
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.focus();
+    }
+  }, [error]);
+
+  const [obj, setObj] = useState<TorrentEntry>(EMPTY_ENTRY);
 
   async function loadTorrent() {
     const f = await openFile();
     if (f) {
+      // Start from a clean form: a refused import must not leave the previous
+      // torrent's title, hash and files sitting on screen behind the error.
+      setError(undefined);
+      setObj(EMPTY_ENTRY);
       const buf = await f.arrayBuffer();
       const torrent = bencode.decode(new Uint8Array(buf)) as Record<string, bencode.BencodeValue>;
       const infoBuf = bencode.encode(torrent["info"]);
       console.debug(torrent);
       const dec = new TextDecoder();
       const info = torrent["info"] as {
+        private?: number;
         files?: Array<{
           length: number;
           path: Array<Uint8Array>;
@@ -90,6 +112,16 @@ export function NewPage() {
         length: number;
         name: Uint8Array;
       };
+
+      // A private torrent's announce URL is typically a per-user passkey. We
+      // publish `announce`/`announce-list` verbatim as public `tracker` tags on
+      // every relay, and events cannot be recalled, so importing one here would
+      // publish that passkey permanently. Refuse rather than leak it.
+      const refusal = privateTorrentRefusal(torrent as { info?: { private?: unknown } });
+      if (refusal) {
+        setError(refusal);
+        return;
+      }
       const annouce = dec.decode(torrent["announce"] as Uint8Array | undefined);
       const announceList = (torrent["announce-list"] as Array<Array<Uint8Array>> | undefined)?.map((a) =>
         dec.decode(a[0]),
@@ -126,7 +158,7 @@ export function NewPage() {
         btih: bytesToHex(sha1(infoBuf)),
         tcat: "",
         files: files,
-        trackers: dedupe([annouce, ...(announceList ?? [])]),
+        trackers: dedupe([annouce, ...(announceList ?? [])]).filter((t) => t.length > 0),
         externalLabels: [],
       });
     }
@@ -522,7 +554,11 @@ export function NewPage() {
         <Button className="mt-4" type="primary" disabled={!entryIsValid(obj)} onClick={publish}>
           Publish
         </Button>
-        {error && <div className="text-red-500">{error}</div>}
+        {error && (
+          <div ref={errorRef} tabIndex={-1} role="alert" className="text-red-500 outline-none">
+            {error}
+          </div>
+        )}
       </form>
     </>
   );
