@@ -1,9 +1,41 @@
-import { defineConfig, searchForWorkspaceRoot } from "vite";
+import { defineConfig, searchForWorkspaceRoot, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { CSP } from "./src/csp";
+
+/**
+ * The Docker image gets its policy from nginx, but the nsite and Blossom copies
+ * are static uploads that cannot set response headers, so the same policy is
+ * injected into index.html at build time.
+ *
+ * `apply: "build"` keeps `bun run dev` working: Vite's dev HTML relies on an
+ * inline react-refresh preamble and an HMR websocket, both of which this
+ * policy blocks.
+ */
+function cspMeta(): Plugin {
+  return {
+    name: "dtan-csp-meta",
+    apply: "build",
+    transformIndexHtml() {
+      return [
+        {
+          tag: "meta",
+          attrs: { "http-equiv": "Content-Security-Policy", content: CSP },
+          injectTo: "head-prepend" as const,
+        },
+        {
+          tag: "meta",
+          attrs: { name: "referrer", content: "strict-origin-when-cross-origin" },
+          injectTo: "head-prepend" as const,
+        },
+      ];
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
+    cspMeta(),
     react(),
     VitePWA({
       registerType: "autoUpdate",
