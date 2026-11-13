@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { TorrentTag } from "../nostr-torrent";
-import { EventKind, Nip10, RequestBuilder } from "@snort/system";
+import { EventKind, RequestBuilder } from "@snort/system";
 import { SSRKeepAlive, TorrentCommentKind, TorrentKind } from "../const";
 import { useRequestBuilder } from "../hooks/nostr";
 import { dedupe, removeUndefined } from "@snort/shared";

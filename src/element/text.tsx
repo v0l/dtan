@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { DefaultImgProxy, proxyImg } from "@snort/shared";
 import { safeHref } from "../safe-link";
 
-export function Text({ content, tags, wrap = true }: { content: string; tags: Array<Array<string>>; wrap?: boolean }) {
+export function Text({ content, tags }: { content: string; tags: Array<Array<string>>; wrap?: boolean }) {
   const frags = useMemo(() => transformText(content, tags), [content, tags]);
 
   function renderFrag(f: ParsedFragment, index: number) {
